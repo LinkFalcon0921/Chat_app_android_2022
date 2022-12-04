@@ -6,15 +6,20 @@ import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_LOGIN_OBJ;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_ID;
 
+import androidx.annotation.NonNull;
+
+import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 public class UserCollection extends FirebaseConnection<String, User> {
 
@@ -32,7 +37,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
     }
 
     public static UserCollection getInstance(Call onFail) {
-        if(Objects.isNull(instance)){
+        if (Objects.isNull(instance)) {
             instance = new UserCollection(onFail);
         }
 
@@ -40,34 +45,70 @@ public class UserCollection extends FirebaseConnection<String, User> {
     }
 
     @Override
-    @Deprecated
-    public Set<User> getCollections() {
-        return null;
+    public void getCollections(Call onSuccess, Call onFail) {
     }
 
-    public User getCollection(String[] keys, Object[] values) {
+    public void getCollection(@NonNull Map<String, Object> whereArgs, Call onSuccess, Call onFail) {
         User user;
 
-        Query referenceQuery = this.collection.whereEqualTo(keys[0], values[0]);
-        for (int index = 1; index < keys.length; index++) {
-            referenceQuery = referenceQuery.whereEqualTo(keys[index], values[index]);
+
+        try {
+            Query referenceQuery = null;
+
+            for (Map.Entry<String, Object> where : whereArgs.entrySet()) {
+                if (Objects.isNull(referenceQuery)) {
+                    referenceQuery = this.collection.whereEqualTo(where.getKey(), where.getValue());
+                    continue;
+                }
+
+                referenceQuery = referenceQuery.whereEqualTo(where.getKey(), where.getValue());
+            }
+
+            loadData(referenceQuery, onSuccess, onFail);
+        } catch (Exception e) {
+            Map<String, Object> results = new HashMap<>();
+            results.put(FirebaseConstants.Results.MESSAGE, e.getMessage());
+            onFail.start(results);
         }
 
-        user = loadData(referenceQuery);
-
-        return user;
     }
 
-//    TODO
+    private void loadData(Query referenceQuery, Call onSuccess, Call onFail) {
+        referenceQuery.get()
+                .addOnCompleteListener(result -> {
 
-    private User loadData(Query referenceQuery) {
+                    QuerySnapshot documentSnapshots = result.getResult();
+                    if (result.isSuccessful() && documentSnapshots != null) {
+                        HashMap<String, Object> hashMap = new HashMap<>();
 
-        return null;
+                        List<DocumentSnapshot> snapshotList = documentSnapshots.getDocuments();
+                        if (snapshotList.isEmpty()) {
+                            hashMap.put(FirebaseConstants.Results.MESSAGE, "The credentials does not exists");
+                            onFail.start(hashMap);
+                        }
+
+                        DocumentSnapshot actDoc = snapshotList.get(0);
+                        Map<String, Object> results = hashMap;
+
+                        String id = actDoc.getId();
+                        String alias = (String) actDoc.get(KEY_ALIAS);
+                        String image = ((String) actDoc.get(KEY_IMAGE));
+
+                        results.put(KEY_USER_ID, id);
+                        results.put(KEY_ALIAS, alias);
+                        results.put(KEY_IMAGE, image);
+
+                        onSuccess.start(results);
+                    }
+
+                }).addOnFailureListener(fail -> {
+                    HashMap<String, Object> hashMap = new HashMap<>();
+                    hashMap.put(FirebaseConstants.Results.MESSAGE, "The user does not exists");
+                });
     }
 
     @Override
-    public User getCollection(String s) {
-        return null;
+    public void getCollection(String s, Call onSuccess, Call onFail) {
     }
 
     @Override
@@ -79,7 +120,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
 
             data.put(KEY_ALIAS, user.getAlias());
             data.put(KEY_IMAGE, user.getImage());
-            data.put(KEY_LOGIN_OBJ, user.getLogin());
+            data.put(KEY_LOGIN_OBJ, user.getUserAccess());
 
             Map<String, Object> results = new HashMap<>();
             this.collection.add(data)
@@ -102,7 +143,6 @@ public class UserCollection extends FirebaseConnection<String, User> {
                     });
 
         } catch (Exception exception) {
-
         }
 
     }

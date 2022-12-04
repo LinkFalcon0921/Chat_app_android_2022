@@ -13,13 +13,15 @@ public class PreferencesManager {
     }
 
     public void put(String key, boolean value) {
-        this.getEditor().putBoolean(key, value);
-        this.applyChanges();
+        SharedPreferences.Editor editor = this.getEditor();
+        editor.putBoolean(key, value);
+        editor.apply();
     }
 
     public void put(String key, String value) {
-        this.getEditor().putString(key, value);
-        this.applyChanges();
+        SharedPreferences.Editor editor = this.getEditor();
+        editor.putString(key, value);
+        editor.apply();
     }
 
     public boolean getBoolean(String key) {
@@ -31,8 +33,9 @@ public class PreferencesManager {
     }
 
     public void clear() {
-        this.getEditor().clear();
-        this.applyChanges();
+        SharedPreferences.Editor editor = this.getEditor();
+        editor.clear();
+        editor.apply();
     }
 
 
@@ -40,6 +43,7 @@ public class PreferencesManager {
         return this.sharedPreferences.edit();
     }
 
+    @Deprecated
     private void applyChanges() {
         this.sharedPreferences.edit().apply();
     }

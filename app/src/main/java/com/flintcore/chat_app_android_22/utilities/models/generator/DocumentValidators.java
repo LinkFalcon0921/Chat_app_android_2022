@@ -2,11 +2,15 @@ package com.flintcore.chat_app_android_22.utilities.models.generator;
 
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_ALIAS;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_CONFIRM_PASS;
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_EMAIL;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_IMAGE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_LOGIN_OBJ;
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_PASS;
 
 import android.graphics.Bitmap;
 import android.util.Patterns;
+
+import androidx.annotation.Nullable;
 
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.models.User;
@@ -15,13 +19,16 @@ import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 
 import java.io.ByteArrayOutputStream;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-public abstract class DocumentGenerators {
+public abstract class DocumentValidators {
 
-    public static class UserGenerator {
+    public static class UserValidator {
+        public UserValidator() {
+        }
 
         public Optional<User> validateUserInfo(Map<String, Object> values, Call onFail) {
 
@@ -46,23 +53,12 @@ public abstract class DocumentGenerators {
 //                Email validation
                 UserAccess access = ((UserAccess) values.get(KEY_LOGIN_OBJ));
                 String email = access.getEmail();
-
-                if (Objects.isNull(email) || email.trim().isEmpty()) {
-                    throw new RuntimeException("Email must be filled");
-                }
-
-                if (!Patterns.EMAIL_ADDRESS.matcher(email.toString()).matches()) {
-                    throw new RuntimeException("Alias must be filled");
-                }
-
-//                Password validation
-
                 String pass = access.getPass();
-                String confirmPass = values.getOrDefault(KEY_CONFIRM_PASS, "").toString();
 
-                if (Objects.isNull(pass) || pass.trim().isEmpty()) {
-                    throw new RuntimeException("Password must be filled");
-                }
+                validateCredentials(email, pass, onFail);
+
+                String confirmPass = values.getOrDefault(KEY_CONFIRM_PASS, "")
+                        .toString();
 
                 if (confirmPass.trim().isEmpty()) {
                     throw new RuntimeException("Password confirmation must be filled");
@@ -72,6 +68,7 @@ public abstract class DocumentGenerators {
                     throw new RuntimeException("Passwords must be equals");
                 }
 
+//                Applying data.
                 User user = new User();
 
                 user.setImage(encodedImage);
@@ -81,18 +78,49 @@ public abstract class DocumentGenerators {
                 login.setEmail(email);
                 login.setPass(pass);
 
-                user.setLogin(login);
+                user.setUserAccess(login);
 
                 return Optional.of(user);
 
             } catch (Exception e) {
-                values.clear();
-                values.put(FirebaseConstants.Results.MESSAGE, e.getMessage());
-                onFail.start(values);
+                callOnFailException(values, onFail, e);
 
             }
 
             return Optional.empty();
+        }
+
+        private void callOnFailException(Call onFail, Exception e) {
+            Map<String, Object> values = new HashMap<>();
+            values.put(FirebaseConstants.Results.MESSAGE, e.getMessage());
+            onFail.start(values);
+        }
+
+        private void validateCredentials(String email, String pass, Call onFail) {
+            try {
+                validateCredentialValues(email, pass);
+            } catch (Exception ex) {
+                callOnFailException(onFail, ex);
+            }
+        }
+        
+        public void validateCredentials(Map<String, Object> values, @Nullable Call onSuccess, Call onFail) {
+            try {
+
+                String email = (String) values.get(KEY_EMAIL);
+                String pass = (String) values.get(KEY_PASS);
+
+                validateCredentialValues(email, pass);
+
+                if (Objects.nonNull(onSuccess)) {
+//                    TODO
+                    onSuccess.start(values);
+                }
+            } catch (Exception ex) {
+                callOnFailException(values, onFail, ex);
+            }
+
+
         }
 
         private String encodeImage(Bitmap bitmap) {
@@ -111,6 +139,27 @@ public abstract class DocumentGenerators {
 
         }
 
-    }
+        private void callOnFailException(Map<String, Object> values, Call onFail, Exception e) {
+            values.clear();
+            values.put(FirebaseConstants.Results.MESSAGE, e.getMessage());
+            onFail.start(values);
+        }
 
+        private void validateCredentialValues(String email, String pass) {
+            if (Objects.isNull(email) || email.trim().isEmpty()) {
+                throw new RuntimeException("Email must be filled");
+            }
+
+            if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                throw new RuntimeException("Alias must be filled");
+            }
+
+//                Password validation
+            if (Objects.isNull(pass) || pass.trim().isEmpty()) {
+                throw new RuntimeException("Password must be filled");
+            }
+        }
+        
+//        End UserValidator
+    }
 }

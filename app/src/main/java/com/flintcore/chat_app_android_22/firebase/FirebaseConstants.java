@@ -23,7 +23,8 @@ public interface FirebaseConstants {
         String COLLECTION = "users";
         String KEY_ALIAS = "alias";
         String KEY_IMAGE = "image";
-        String KEY_LOGIN_OBJ = "user_login";
+        String KEY_USER_OBJ = "user_obj";
+        String KEY_LOGIN_OBJ = "userAccess";
         String KEY_EMAIL = "email";
         String KEY_PASS = "pass";
         String KEY_CONFIRM_PASS = "pass";

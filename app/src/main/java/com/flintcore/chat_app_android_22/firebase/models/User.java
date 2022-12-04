@@ -2,6 +2,8 @@ package com.flintcore.chat_app_android_22.firebase.models;
 
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
 
+import java.util.Objects;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -12,7 +14,7 @@ public class User {
     private String id;
     private String alias;
     private String image;
-    private UserAccess login;
+    private UserAccess userAccess;
 
     public String getId() {
         return id;
@@ -38,12 +40,24 @@ public class User {
         this.image = image;
     }
 
-    public UserAccess getLogin() {
-        return login;
+    public UserAccess getUserAccess() {
+        return userAccess;
     }
 
-    public void setLogin(UserAccess login) {
-        this.login = login;
+    public void setUserAccess(UserAccess userAccess) {
+        this.userAccess = userAccess;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        User user = (User) o;
+        return Objects.equals(id, user.id) && Objects.equals(alias, user.alias) && Objects.equals(image, user.image) && Objects.equals(userAccess, user.userAccess);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, alias, image, userAccess);
+    }
 }

@@ -6,13 +6,11 @@ import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_CONFIRM_PASS;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_IMAGE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_IS_SIGNED_IN;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_PASS;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_ID;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
@@ -33,7 +31,7 @@ import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
-import com.flintcore.chat_app_android_22.utilities.models.generator.DocumentGenerators;
+import com.flintcore.chat_app_android_22.utilities.models.generator.DocumentValidators;
 import com.makeramen.roundedimageview.RoundedDrawable;
 
 import java.io.FileNotFoundException;
@@ -48,8 +46,8 @@ public class SignUpActivity extends AppCompatActivity {
 
     private ActivitySignUpBinding binding;
     private PreferencesManager preferencesManager;
-    private UserCollection collection;
-    private DocumentGenerators.UserGenerator userGenerator;
+    private UserCollection userCollection;
+    private DocumentValidators.UserValidator userValidator;
 
     //    Activity results
 //    pick image
@@ -83,8 +81,15 @@ public class SignUpActivity extends AppCompatActivity {
         this.binding = ActivitySignUpBinding.inflate(getLayoutInflater());
         setContentView(this.binding.getRoot());
 
-        this.collection = UserCollection.getInstance(getOnFailFirebaseConnection());
-        this.userGenerator = new DocumentGenerators.UserGenerator();
+        this.preferencesManager = new PreferencesManager(getApplicationContext(),
+                FirebaseConstants.SharedReferences.CHAT_USER_LOGGED_PREFERENCES);
+
+        if (this.preferencesManager.getBoolean(KEY_IS_SIGNED_IN)) {
+            startActivity(goToMainIntent());
+        }
+
+        this.userCollection = UserCollection.getInstance(getOnFailFirebaseConnection());
+        this.userValidator = new DocumentValidators.UserValidator();
 
 
         setListenersButtons();
@@ -103,12 +108,7 @@ public class SignUpActivity extends AppCompatActivity {
     private Call getOnFailFirebaseConnection() {
         return data -> {
             String message = data.get(MESSAGE).toString();
-
-            if (Objects.isNull(message)) {
-                Toast.makeText(getApplicationContext(), FAIL_GET_RESPONSE, Toast.LENGTH_SHORT).show();
-            }
-
-            Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
+            showMessage(message);
         };
     }
 
@@ -133,7 +133,7 @@ public class SignUpActivity extends AppCompatActivity {
 
         if (Objects.nonNull(drawable)) {
 //            Beware with RoundedDrawable.toBitmap()
-            imageBitmap =  ((RoundedDrawable) drawable).getSourceBitmap();
+            imageBitmap = ((RoundedDrawable) drawable).getSourceBitmap();
         }
 
         String alias = this.binding.aliasTxt.getText().toString();
@@ -142,12 +142,12 @@ public class SignUpActivity extends AppCompatActivity {
 //        Always create this class to login
         UserAccess access = new UserAccess();
         String pass = this.binding.passTxt.getText().toString();
-        String conf_pass = this.binding.passTxt.getText().toString();
+        String conf_pass = this.binding.passConfirmTxt.getText().toString();
 
         access.setEmail(email);
         access.setPass(pass);
 
-        //        Fill values in map
+        // Fill values in map
         values.put(KEY_IMAGE, imageBitmap);
 
         values.put(FirebaseConstants.Users.KEY_ALIAS, alias);
@@ -162,7 +162,7 @@ public class SignUpActivity extends AppCompatActivity {
             showMessage(message);
         };
 
-        Optional<User> optionalUser = userGenerator.validateUserInfo(values,
+        Optional<User> optionalUser = userValidator.validateUserInfo(values,
                 onFailDefault);
 
         if (optionalUser.isPresent()) {
@@ -171,33 +171,37 @@ public class SignUpActivity extends AppCompatActivity {
             startFirebaseRequest(true);
 
             Call onSuccessConnection = data -> {
-                this.preferencesManager.put(KEY_IS_SIGNED_IN,
-                        true);
-
-                this.preferencesManager.put(KEY_USER_ID,
-                        data.get(KEY_USER_ID).toString());
-
-                this.preferencesManager.put(KEY_ALIAS,
-                        data.get(KEY_ALIAS).toString());
-
-                this.preferencesManager.put(KEY_IMAGE,
-                        data.get(KEY_IMAGE).toString());
+                savePreferences(data);
 
                 startActivity(goToMainIntent());
             };
 
-            this.collection.addCollection(user, onSuccessConnection, onFailDefault);
+            this.userCollection.addCollection(user, onSuccessConnection, onFailDefault);
         }
 
+    }
+
+    private void savePreferences(Map<String, Object> data) {
+        this.preferencesManager.put(KEY_IS_SIGNED_IN,
+                true);
+
+        this.preferencesManager.put(KEY_USER_ID,
+                data.get(KEY_USER_ID).toString());
+
+        this.preferencesManager.put(KEY_ALIAS,
+                data.get(KEY_ALIAS).toString());
+
+        this.preferencesManager.put(KEY_IMAGE,
+                data.get(KEY_IMAGE).toString());
     }
 
     private Intent goToMainIntent() {
         Intent logUpIntent = new Intent(getApplicationContext(), MainActivity.class);
         logUpIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-//        startActivity(logInIntent);
         return logUpIntent;
     }
 
+    //    Show the progress bar
     private void startFirebaseRequest(boolean isLoading) {
         if (isLoading) {
             this.binding.signUpBtn.setVisibility(View.INVISIBLE);
