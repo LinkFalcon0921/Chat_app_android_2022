@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "129623607875",
+    "project_id": "chat-app-android-22",
+    "storage_bucket": "chat-app-android-22.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:129623607875:android:9c581ce6eb631662b9e2f6",
+        "android_client_info": {
+          "package_name": "com.flintcore.chat_app_android_22"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "129623607875-ocjbdaugvs8o7fo49oq6a35d8cv7jq0d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArENLVl39uHpokStGW58wuvrsV2IJb5CU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "129623607875-ocjbdaugvs8o7fo49oq6a35d8cv7jq0d.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:129623607875:android:270a546ab11adcc2b9e2f6",
+        "android_client_info": {
+          "package_name": "com.flintcore.myapplication"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "129623607875-ocjbdaugvs8o7fo49oq6a35d8cv7jq0d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArENLVl39uHpokStGW58wuvrsV2IJb5CU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "129623607875-ocjbdaugvs8o7fo49oq6a35d8cv7jq0d.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

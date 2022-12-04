@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Flint Chat Core</string>
+    <string name="welcome_msg">Welcome</string>
+    <string name="log_in_msg">Login to continue</string>
+    <string name="email_msg">Email</string>
+    <string name="pass_msg">Password</string>
+    <string name="sign_in_msg">Sign In</string>
+    <string name="create_account_msg">Create New Account</string>
+    <string name="new_account_msg">New account</string>
+    <string name="add_image_msg">Add Image</string>
+    <string name="name_msg">Name</string>
+    <string name="confirm_pass_msg">Confirm Password</string>
+    <string name="sign_up_msg">Sign Up</string>
+</resources>
