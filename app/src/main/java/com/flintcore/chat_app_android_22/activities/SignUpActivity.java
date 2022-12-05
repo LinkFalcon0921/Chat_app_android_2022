@@ -15,6 +15,7 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.text.InputFilter;
 import android.view.View;
 import android.widget.Toast;
 
@@ -32,17 +33,18 @@ import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.flintcore.chat_app_android_22.utilities.models.generator.DocumentValidators;
+import com.flintcore.chat_app_android_22.utilities.views.DefaultConfigs;
 import com.makeramen.roundedimageview.RoundedDrawable;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
 public class SignUpActivity extends AppCompatActivity {
-
 
     private ActivitySignUpBinding binding;
     private PreferencesManager preferencesManager;
@@ -91,8 +93,22 @@ public class SignUpActivity extends AppCompatActivity {
         this.userCollection = UserCollection.getInstance(getOnFailFirebaseConnection());
         this.userValidator = new DocumentValidators.UserValidator();
 
-
+        configurateFields();
         setListenersButtons();
+
+    }
+
+    private void configurateFields() {
+        this.binding.aliasTxt.setFilters(
+                new InputFilter[]{DefaultConfigs.InputFilters.NAME_INPUT_FILTER});
+
+        this.binding.emailTxt.setFilters(
+                new InputFilter[]{DefaultConfigs.InputFilters.EMAIL_INPUT_FILTER});
+
+        this.binding.passTxt.setFilters(
+                new InputFilter[]{DefaultConfigs.InputFilters.PASS_INPUT_FILTER});
+        this.binding.passConfirmTxt.setFilters(
+                new InputFilter[]{DefaultConfigs.InputFilters.PASS_INPUT_FILTER});
 
     }
 

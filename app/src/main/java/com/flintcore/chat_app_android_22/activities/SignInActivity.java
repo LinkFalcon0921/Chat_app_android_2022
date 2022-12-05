@@ -12,6 +12,7 @@ import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.InputFilter;
 import android.view.View;
 import android.widget.Toast;
 
@@ -26,6 +27,7 @@ import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 import com.flintcore.chat_app_android_22.utilities.models.generator.DocumentValidators;
+import com.flintcore.chat_app_android_22.utilities.views.DefaultConfigs;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -55,7 +57,16 @@ public class SignInActivity extends AppCompatActivity {
         this.userCollection = UserCollection.getInstance(getOnFailFirebaseConnection());
         this.userValidator = new DocumentValidators.UserValidator();
 
+        configurateFields();
         setListenersButtons();
+    }
+
+    private void configurateFields() {
+        this.binding.emailTxt.setFilters(
+                new InputFilter[]{DefaultConfigs.InputFilters.EMAIL_INPUT_FILTER});
+
+        this.binding.passTxt.setFilters(
+                new InputFilter[]{DefaultConfigs.InputFilters.PASS_INPUT_FILTER});
     }
 
     //    Set Listeners of the buttons

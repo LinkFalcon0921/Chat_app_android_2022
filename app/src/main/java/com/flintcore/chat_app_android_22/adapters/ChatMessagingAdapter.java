@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.flintcore.chat_app_android_22.databinding.ItemContentReceiveMessageBinding;
 import com.flintcore.chat_app_android_22.databinding.ItemContentSentMessageBinding;
 import com.flintcore.chat_app_android_22.firebase.models.ChatMessage;
+import com.flintcore.chat_app_android_22.utilities.dates.DateUtils;
 
 import java.util.List;
 
@@ -21,10 +22,12 @@ public class ChatMessagingAdapter extends RecyclerView.Adapter<RecyclerView.View
     // TODO add bitmap when add to View received.
     private final List<ChatMessage> messages;
     private final String senderId;
+    private final DateUtils dateUtils;
 
     public ChatMessagingAdapter(@NonNull String senderId, List<ChatMessage> messages) {
         this.senderId = senderId;
         this.messages = messages;
+        this.dateUtils = DateUtils.getDateUtils("MMMM dd, yyyy hh:mm a");
     }
 
     @NonNull
@@ -50,11 +53,11 @@ public class ChatMessagingAdapter extends RecyclerView.Adapter<RecyclerView.View
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         switch (getItemViewType(position)) {
             case ViewType.SENT:
-                ((SendMessageHolder) holder).setData(this.messages.get(position));
+                ((SendMessageHolder) holder).setData(this.dateUtils, this.messages.get(position));
                 break;
             default:
             case ViewType.RECEIVED:
-                ((ReceivedMessageHolder) holder).setData(this.messages.get(position));
+                ((ReceivedMessageHolder) holder).setData(this.dateUtils, this.messages.get(position));
         }
     }
 
@@ -83,9 +86,10 @@ public class ChatMessagingAdapter extends RecyclerView.Adapter<RecyclerView.View
             this.binding = binding;
         }
 
-        void setData(ChatMessage message) {
+        void setData(DateUtils dateUtils, ChatMessage message) {
             this.binding.textMessage.setText(message.getMessage());
-            this.binding.dateMessageSent.setText(message.getDatetime().toString());
+            String dateText = dateUtils.getReadableDate(message.getDatetime());
+            this.binding.dateMessageSent.setText(dateText);
         }
     }
 
@@ -97,9 +101,10 @@ public class ChatMessagingAdapter extends RecyclerView.Adapter<RecyclerView.View
             this.binding = binding;
         }
 
-        void setData(ChatMessage message) {
+        void setData(DateUtils dateUtils, ChatMessage message) {
             this.binding.textMessage.setText(message.getMessage());
-            this.binding.dateMessageReceived.setText(message.getDatetime().toString());
+            String dateText = dateUtils.getReadableDate(message.getDatetime());
+            this.binding.dateMessageReceived.setText(dateText);
         }
     }
 }

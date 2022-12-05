@@ -2,10 +2,11 @@ package com.flintcore.chat_app_android_22.activities;
 
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Results.MESSAGE;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.os.Bundle;
+import android.text.InputFilter;
 import android.view.View;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.flintcore.chat_app_android_22.adapters.ChatMessagingAdapter;
 import com.flintcore.chat_app_android_22.databinding.ActivityChatSimpleBinding;
@@ -18,6 +19,7 @@ import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.flintcore.chat_app_android_22.utilities.dates.DateUtils;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
+import com.flintcore.chat_app_android_22.utilities.views.DefaultConfigs;
 import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestoreException;
@@ -35,7 +37,7 @@ public class ChatSimpleActivity extends AppCompatActivity implements EventListen
     private ActivityChatSimpleBinding binding;
     private PreferencesManager loggedPreferencesManager;
     private ChatMessageCollection chatMessageCollection;
-    private DateUtils dateUtils;
+//    private DateUtils dateUtils;
 
     private String senderId;
     private User receivedUser;
@@ -51,11 +53,18 @@ public class ChatSimpleActivity extends AppCompatActivity implements EventListen
         this.chatMessageCollection = ChatMessageCollection
                 .getChatMessageCollectionInstance(getDefaultOnFailCall());
 
-        this.dateUtils = DateUtils.getDateUtils("MMMM dd, yyyy hh:mm a");
+//        this.dateUtils = DateUtils.getDateUtils("MMMM dd, yyyy hh:mm a");
 
+        configurateFields();
         loadUserSelectedDetails();
         setListeners();
         loadChatData();
+    }
+
+    private void configurateFields() {
+        this.binding.inputMessage.setFilters(new InputFilter[]{
+                DefaultConfigs.InputFilters.MESSAGE_INPUT_FILTER
+        });
     }
 
     //    Buttons listeners
@@ -96,9 +105,13 @@ public class ChatSimpleActivity extends AppCompatActivity implements EventListen
     }
 
     private void sendMessageAction() {
+        String message = this.binding.inputMessage.getText().toString();
+        if(message.trim().isEmpty()){
+            return;
+        }
+
         String receiverId = this.receivedUser.getId();
 
-        String message = this.binding.inputMessage.getText().toString();
         message = Encryptions.encrypt(message);
 
         Date messageSentDate = new Date();
@@ -111,13 +124,18 @@ public class ChatSimpleActivity extends AppCompatActivity implements EventListen
         messageSent.setDatetime(messageSentDate);
 
         Call onSuccess = unused -> {
-
+            this.binding.inputMessage.setText(null);
+            refreshChatView(this.chatMessages.size());
         };
 
         Call onFail = getDefaultOnFailCall();
 
         this.chatMessageCollection.addCollection(messageSent, onSuccess, onFail);
 
+    }
+
+    private void refreshChatView(int chatMessages) {
+        this.binding.chatMessageRecycler.smoothScrollToPosition(chatMessages);
     }
 
     private Call getDefaultOnFailCall() {
@@ -147,8 +165,7 @@ public class ChatSimpleActivity extends AppCompatActivity implements EventListen
                     ChatMessage newChatMessage = documentChange.getDocument()
                             .toObject(ChatMessage.class);
 
-                    String message = newChatMessage.getMessage();
-                    message = Encryptions.decrypt(message);
+                    String message = Encryptions.decrypt(newChatMessage.getMessage());
                     newChatMessage.setMessage(message);
 
                     this.chatMessages.add(newChatMessage);
@@ -160,7 +177,7 @@ public class ChatSimpleActivity extends AppCompatActivity implements EventListen
 
         if (previousChangeCount > 0) {
             this.chatAdapter.notifyItemRangeInserted(previousChangeCount, actualChatSize);
-            this.binding.chatMessageRecycler.smoothScrollToPosition(actualChatSize - 1);
+            refreshChatView(actualChatSize - 1);
             this.binding.chatMessageRecycler.setVisibility(View.VISIBLE);
         } else {
             this.chatAdapter.notifyDataSetChanged();

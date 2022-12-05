@@ -1,27 +1,18 @@
 package com.flintcore.chat_app_android_22.utilities.encrypt;
 
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.KeyEncryption.KEY;
+import static com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions.EncryptionValues.ENCRYPT_DIFF_VALUE;
+import static com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions.EncryptionValues.ENCRYPT_DIVIDE_VALUE;
 
 import android.util.Base64;
 
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.Objects;
-import java.util.stream.Collectors;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.KeyGenerator;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
 
 public final class Encryptions {
 
-    private interface EncryptionValues {
-        int ENCRYPT_DIVIDE_VALUE = 7;
-        int ENCRYPT_DIFF_VALUE = 12;
+    interface EncryptionValues {
+        byte ENCRYPT_DIVIDE_VALUE = 7;
+        byte ENCRYPT_DIFF_VALUE = 7;
     }
 
     private static Encryptions encryptions;
@@ -37,24 +28,38 @@ public final class Encryptions {
         return encryptions;
     }
 
+//    DONE!
     public static String encrypt(String text) {
-        return text.chars()
-                .map(v -> (v + EncryptionValues.ENCRYPT_DIVIDE_VALUE) -
-                        EncryptionValues.ENCRYPT_DIFF_VALUE)
-                .collect(StringBuilder::new,
-                        StringBuilder::appendCodePoint,
-                        StringBuilder::append)
-                .toString();
+        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        byte[] newBytedText = new byte[bytes.length * 2];
+
+        int newBytesCount = 0;
+        for (int indx = 0; indx < bytes.length; indx++, newBytesCount+=2) {
+            byte actByteDiv = (byte) (bytes[indx] / ENCRYPT_DIVIDE_VALUE);
+            byte actByteMod = (byte) (bytes[indx] % ENCRYPT_DIFF_VALUE);
+
+            newBytedText[newBytesCount] = actByteDiv;
+            newBytedText[newBytesCount+1] = actByteMod;
+        }
+
+        return new String(newBytedText, StandardCharsets.UTF_8);
+
     }
 
     public static String decrypt(String text) {
-        return text.chars()
-                .map(v -> (v - EncryptionValues.ENCRYPT_DIVIDE_VALUE) +
-                        EncryptionValues.ENCRYPT_DIFF_VALUE)
-                .collect(StringBuilder::new,
-                        StringBuilder::appendCodePoint,
-                        StringBuilder::append)
-                .toString();
+        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        byte[] newBytedText = new byte[bytes.length / 2];
+
+        int newBytesCount = 0;
+        for (int indx = 0; indx < bytes.length; indx+=2, newBytesCount++) {
+            byte actByteDiv = (byte) (bytes[indx] * ENCRYPT_DIVIDE_VALUE);
+            byte actByteMod = bytes[indx+1];
+
+            newBytedText[newBytesCount] = (byte) (actByteDiv + actByteMod);
+        }
+
+        return new String(newBytedText, StandardCharsets.UTF_8);
+
     }
 
     @Deprecated

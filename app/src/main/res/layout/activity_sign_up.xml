@@ -67,7 +67,8 @@
                 android:hint="@string/name_msg"
                 android:imeOptions="actionNext"
                 android:importantForAutofill="no"
-                android:inputType="text"
+                android:inputType="text|textPersonName"
+                android:maxLength="20"
                 android:paddingHorizontal="@dimen/_16sdp"
                 android:textColor="@color/primary_text_color"
                 android:textSize="@dimen/_14ssp" />
