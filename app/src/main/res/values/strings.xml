@@ -13,4 +13,6 @@
     <string name="sign_up_msg">Sign Up</string>
     <string name="new_contact_msg">Select new contact</string>
     <string name="add_user_msg">Add Contact</string>
+    <string name="type_message_msg">Type to message</string>
+    <string name="send_msg">send Message</string>
 </resources>
