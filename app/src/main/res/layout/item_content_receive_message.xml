@@ -21,7 +21,7 @@
         app:layout_constraintWidth_percent=".8" />
 
     <TextView
-        android:id="@+id/dateMessageSent"
+        android:id="@+id/dateMessageReceived"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/_6sdp"
