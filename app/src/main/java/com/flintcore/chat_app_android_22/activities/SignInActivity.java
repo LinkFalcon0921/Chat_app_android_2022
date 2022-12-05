@@ -24,6 +24,7 @@ import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
+import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 import com.flintcore.chat_app_android_22.utilities.models.generator.DocumentValidators;
 
 import java.util.HashMap;
@@ -45,7 +46,7 @@ public class SignInActivity extends AppCompatActivity {
         setContentView(this.binding.getRoot());
 
         this.preferencesManager = new PreferencesManager(getApplicationContext(),
-                FirebaseConstants.SharedReferences.CHAT_USER_LOGGED_PREFERENCES);
+                FirebaseConstants.SharedReferences.KEY_CHAT_USER_LOGGED_PREFERENCES);
 
         if (this.preferencesManager.getBoolean(KEY_IS_SIGNED_IN)) {
             startActivity(goToMainIntent());
@@ -92,7 +93,7 @@ public class SignInActivity extends AppCompatActivity {
 
             data.clear();
             data.put(KEY_LOGIN_OBJ.concat(DAT_STR).concat(KEY_EMAIL), email);
-            data.put(KEY_LOGIN_OBJ.concat(DAT_STR).concat(KEY_PASS), pass);
+            data.put(KEY_LOGIN_OBJ.concat(DAT_STR).concat(KEY_PASS), Encryptions.encrypt(pass));
 
             this.userCollection
                     .getCollection(data, onSuccessLogged, onFail);

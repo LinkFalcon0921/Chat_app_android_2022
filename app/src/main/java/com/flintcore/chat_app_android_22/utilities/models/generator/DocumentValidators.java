@@ -76,7 +76,7 @@ public abstract class DocumentValidators {
 
                 UserAccess login = new UserAccess();
                 login.setEmail(email);
-                login.setPass(pass);
+                login.setPass(Encryptions.encrypt(pass));
 
                 user.setUserAccess(login);
 
@@ -103,7 +103,7 @@ public abstract class DocumentValidators {
                 callOnFailException(onFail, ex);
             }
         }
-        
+
         public void validateCredentials(Map<String, Object> values, @Nullable Call onSuccess, Call onFail) {
             try {
 
@@ -119,8 +119,6 @@ public abstract class DocumentValidators {
             } catch (Exception ex) {
                 callOnFailException(values, onFail, ex);
             }
-
-
         }
 
         private String encodeImage(Bitmap bitmap) {
@@ -135,8 +133,8 @@ public abstract class DocumentValidators {
 
             byte[] bytedImage = byteOutputImage.toByteArray();
 
-            return Encryptions.encryptToString(bytedImage);
-
+//            return Encryptions.encryptToString(bytedImage);
+            return Encryptions.encryptAndroidImageToString(bytedImage);
         }
 
         private void callOnFailException(Map<String, Object> values, Call onFail, Exception e) {
@@ -159,7 +157,7 @@ public abstract class DocumentValidators {
                 throw new RuntimeException("Password must be filled");
             }
         }
-        
+
 //        End UserValidator
     }
 }

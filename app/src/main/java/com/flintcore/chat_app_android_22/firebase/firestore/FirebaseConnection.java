@@ -11,6 +11,7 @@ public abstract class FirebaseConnection<ID, T> {
     protected CollectionReference collection;
 
     public abstract void getCollections(Call onSuccess, Call onFail);
+    public abstract void getCollections(ID id, Call onSuccess, Call onFail);
 
     public abstract void getCollection(ID id, Call onSuccess, Call onFail);
 
@@ -24,4 +25,6 @@ public abstract class FirebaseConnection<ID, T> {
 
     public abstract void deleteCollection(String[] keys, Object[] values, Call onSuccess, Call onFail);
 
+    public  abstract void updateToken(ID id, Call onSuccess, Call onFail);
+    public  abstract void clearToken(ID id, Call onSuccess, Call onFail);
 }

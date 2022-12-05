@@ -12,16 +12,21 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication"
         tools:targetApi="31">
-
-        <!--Sign Up-->
+        <activity
+            android:name=".activities.UserActivity"
+            android:exported="false">
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="" />
+        </activity>
+        <!-- Sign Up -->
         <activity
             android:name=".activities.SignUpActivity"
             android:exported="false">
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="" />
-        </activity>
-        <!-- Log in LAUNCHER-->
+        </activity> <!-- Log in LAUNCHER -->
         <activity
             android:name=".activities.SignInActivity"
             android:exported="true"
@@ -35,16 +40,14 @@
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="" />
-        </activity>
-        <!--Main activity-->
+        </activity> <!-- Main activity -->
         <activity
             android:name=".MainActivity"
             android:exported="false">
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="" />
-        </activity>
-        <!--Firebase service-->
+        </activity> <!-- Firebase service -->
         <service
             android:name=".firebase.FirebaseMessageService"
             android:exported="false">

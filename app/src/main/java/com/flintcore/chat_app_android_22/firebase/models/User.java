@@ -2,6 +2,7 @@ package com.flintcore.chat_app_android_22.firebase.models;
 
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 import lombok.Data;
@@ -10,11 +11,22 @@ import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
-public class User {
+public class User implements Serializable {
+
+    private String token;
     private String id;
     private String alias;
     private String image;
     private UserAccess userAccess;
+
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
+    }
 
     public String getId() {
         return id;

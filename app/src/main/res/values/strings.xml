@@ -11,4 +11,6 @@
     <string name="name_msg">Name</string>
     <string name="confirm_pass_msg">Confirm Password</string>
     <string name="sign_up_msg">Sign Up</string>
+    <string name="new_contact_msg">Select new contact</string>
+    <string name="add_user_msg">Add Contact</string>
 </resources>

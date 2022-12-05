@@ -82,7 +82,7 @@ public class SignUpActivity extends AppCompatActivity {
         setContentView(this.binding.getRoot());
 
         this.preferencesManager = new PreferencesManager(getApplicationContext(),
-                FirebaseConstants.SharedReferences.CHAT_USER_LOGGED_PREFERENCES);
+                FirebaseConstants.SharedReferences.KEY_CHAT_USER_LOGGED_PREFERENCES);
 
         if (this.preferencesManager.getBoolean(KEY_IS_SIGNED_IN)) {
             startActivity(goToMainIntent());
@@ -128,6 +128,7 @@ public class SignUpActivity extends AppCompatActivity {
     private void signUpToFirestore() {
         Map<String, Object> values = new HashMap<>();
 
+        startFirebaseRequest(true);
         Bitmap imageBitmap = null;
         Drawable drawable = this.binding.imagePreview.getDrawable();
 
@@ -167,8 +168,6 @@ public class SignUpActivity extends AppCompatActivity {
 
         if (optionalUser.isPresent()) {
             User user = optionalUser.get();
-
-            startFirebaseRequest(true);
 
             Call onSuccessConnection = data -> {
                 savePreferences(data);

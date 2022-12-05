@@ -2,6 +2,8 @@ package com.flintcore.chat_app_android_22.utilities.encrypt;
 
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.KeyEncryption.KEY;
 
+import android.util.Base64;
+
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -23,8 +25,8 @@ public final class Encryptions {
     private Encryptions() {
     }
 
-    public static Encryptions getInstance(){
-        if(Objects.isNull(encryptions)){
+    public static Encryptions getInstance() {
+        if (Objects.isNull(encryptions)) {
             encryptions = new Encryptions();
             try {
                 encryptions.keySecret = KeyGenerator.getInstance(KEY).generateKey();
@@ -45,7 +47,7 @@ public final class Encryptions {
 
             encrypter.init(Cipher.ENCRYPT_MODE, encryptions.keySecret);
 
-            text = new String(encrypter.doFinal(textByted));
+            text = new String(encrypter.doFinal(textByted), StandardCharsets.UTF_8);
 
         } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
             e.printStackTrace();
@@ -63,7 +65,7 @@ public final class Encryptions {
 
             encrypter.init(Cipher.DECRYPT_MODE, secretKey);
 
-            text = new String(encrypter.doFinal(textByted));
+            text = new String(encrypter.doFinal(textByted), StandardCharsets.UTF_8);
 
         } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
             e.printStackTrace();
@@ -115,7 +117,7 @@ public final class Encryptions {
             e.printStackTrace();
         }
 
-        return new String(data);
+        return new String(data, StandardCharsets.UTF_8);
     }
 
     public static byte[] decryptFromString(String data) {
@@ -136,5 +138,13 @@ public final class Encryptions {
         }
 
         return dataBytes;
+    }
+
+    public static String encryptAndroidImageToString(byte[] data) {
+        return Base64.encodeToString(data, Base64.DEFAULT);
+    }
+
+    public static byte[] decryptAndroidImageFromString(String data) {
+        return Base64.decode(data, Base64.DEFAULT);
     }
 }
