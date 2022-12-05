@@ -85,7 +85,7 @@ public class ChatMessagingAdapter extends RecyclerView.Adapter<RecyclerView.View
 
         void setData(ChatMessage message) {
             this.binding.textMessage.setText(message.getMessage());
-            this.binding.dateMessageSent.setText(message.getDateTime());
+            this.binding.dateMessageSent.setText(message.getDatetime().toString());
         }
     }
 
@@ -99,7 +99,7 @@ public class ChatMessagingAdapter extends RecyclerView.Adapter<RecyclerView.View
 
         void setData(ChatMessage message) {
             this.binding.textMessage.setText(message.getMessage());
-            this.binding.dateMessageReceived.setText(message.getDateTime());
+            this.binding.dateMessageReceived.setText(message.getDatetime().toString());
         }
     }
 }

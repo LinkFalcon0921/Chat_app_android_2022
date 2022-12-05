@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -18,9 +19,12 @@ import javax.crypto.SecretKey;
 
 public final class Encryptions {
 
+    private interface EncryptionValues {
+        int ENCRYPT_DIVIDE_VALUE = 7;
+        int ENCRYPT_DIFF_VALUE = 12;
+    }
+
     private static Encryptions encryptions;
-    private Cipher encrypter;
-    private SecretKey keySecret;
 
     private Encryptions() {
     }
@@ -28,114 +32,52 @@ public final class Encryptions {
     public static Encryptions getInstance() {
         if (Objects.isNull(encryptions)) {
             encryptions = new Encryptions();
-            try {
-                encryptions.keySecret = KeyGenerator.getInstance(KEY).generateKey();
-                encryptions.encrypter = Cipher.getInstance(KEY);
-
-            } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-                e.printStackTrace();
-            }
         }
 
         return encryptions;
     }
 
     public static String encrypt(String text) {
-        try {
-            Cipher encrypter = getInstance().encrypter;
-            byte[] textByted = text.getBytes(StandardCharsets.UTF_8);
-
-            encrypter.init(Cipher.ENCRYPT_MODE, encryptions.keySecret);
-
-            text = new String(encrypter.doFinal(textByted), StandardCharsets.UTF_8);
-
-        } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
-            e.printStackTrace();
-        }
-
-        return text;
+        return text.chars()
+                .map(v -> (v + EncryptionValues.ENCRYPT_DIVIDE_VALUE) -
+                        EncryptionValues.ENCRYPT_DIFF_VALUE)
+                .collect(StringBuilder::new,
+                        StringBuilder::appendCodePoint,
+                        StringBuilder::append)
+                .toString();
     }
 
     public static String decrypt(String text) {
-        try {
-            Cipher encrypter = getInstance().encrypter;
-            SecretKey secretKey = encryptions.keySecret;
-
-            byte[] textByted = text.getBytes(StandardCharsets.UTF_8);
-
-            encrypter.init(Cipher.DECRYPT_MODE, secretKey);
-
-            text = new String(encrypter.doFinal(textByted), StandardCharsets.UTF_8);
-
-        } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
-            e.printStackTrace();
-        }
-
-        return text;
+        return text.chars()
+                .map(v -> (v - EncryptionValues.ENCRYPT_DIVIDE_VALUE) +
+                        EncryptionValues.ENCRYPT_DIFF_VALUE)
+                .collect(StringBuilder::new,
+                        StringBuilder::appendCodePoint,
+                        StringBuilder::append)
+                .toString();
     }
 
+    @Deprecated
     public static byte[] encrypt(byte[] data) {
-        try {
-            Cipher encrypter = getInstance().encrypter;
-
-            encrypter.init(Cipher.ENCRYPT_MODE, encryptions.keySecret);
-
-            data = encrypter.doFinal(data);
-
-        } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
-            e.printStackTrace();
-        }
 
         return data;
     }
 
+    @Deprecated
     public static byte[] decrypt(byte[] data) {
-        try {
-            Cipher encrypter = getInstance().encrypter;
-            SecretKey secretKey = encryptions.keySecret;
-
-            encrypter.init(Cipher.DECRYPT_MODE, secretKey);
-
-            data = encrypter.doFinal(data);
-
-        } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
-            e.printStackTrace();
-        }
 
         return data;
     }
 
+    @Deprecated
     public static String encryptToString(byte[] data) {
-        try {
-            Cipher encrypter = getInstance().encrypter;
-
-            encrypter.init(Cipher.ENCRYPT_MODE, encryptions.keySecret);
-
-            data = encrypter.doFinal(data);
-
-        } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
-            e.printStackTrace();
-        }
 
         return new String(data, StandardCharsets.UTF_8);
     }
 
+    @Deprecated
     public static byte[] decryptFromString(String data) {
         byte[] dataBytes = data.getBytes(StandardCharsets.UTF_8);
-
-        try {
-            Cipher encrypter = getInstance().encrypter;
-            SecretKey secretKey = encryptions.keySecret;
-
-            encrypter.init(Cipher.DECRYPT_MODE, secretKey);
-
-            dataBytes = data.getBytes(StandardCharsets.UTF_8);
-
-            dataBytes = encrypter.doFinal(dataBytes);
-
-        } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
-            e.printStackTrace();
-        }
 
         return dataBytes;
     }

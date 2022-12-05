@@ -1,12 +1,31 @@
 package com.flintcore.chat_app_android_22.firebase.models;
 
+import com.google.firebase.firestore.Exclude;
+
 import java.io.Serializable;
+import java.util.Date;
 
 public class ChatMessage implements Serializable {
+
+    @Exclude
+    private String id;
+
     private String senderId;
     private String receivedId;
     private String message;
-    private String dateTime;
+    private Date datetime;
+
+    public ChatMessage() {
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
 
     public String getSenderId() {
         return senderId;
@@ -32,11 +51,11 @@ public class ChatMessage implements Serializable {
         this.message = message;
     }
 
-    public String getDateTime() {
-        return dateTime;
+    public Date getDatetime() {
+        return datetime;
     }
 
-    public void setDateTime(String dateTime) {
-        this.dateTime = dateTime;
+    public void setDatetime(Date datetime) {
+        this.datetime = datetime;
     }
 }

@@ -4,6 +4,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
+import com.google.firebase.firestore.Exclude;
 
 import java.io.Serializable;
 import java.util.Objects;
@@ -15,8 +16,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class User implements Serializable {
 
-    private String token;
+    @Exclude
     private String id;
+    private String token;
     private String alias;
     private String image;
     private UserAccess userAccess;

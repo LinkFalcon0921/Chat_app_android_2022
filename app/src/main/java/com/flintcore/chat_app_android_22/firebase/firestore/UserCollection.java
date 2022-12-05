@@ -195,6 +195,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
                         if (snapshotList.isEmpty()) {
                             hashMap.put(FirebaseConstants.Results.MESSAGE, "The credentials does not exists");
                             onFail.start(hashMap);
+                            return;
                         }
 
                         DocumentSnapshot actDoc = snapshotList.get(0);
