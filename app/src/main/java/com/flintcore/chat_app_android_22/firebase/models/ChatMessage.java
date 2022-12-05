@@ -9,7 +9,6 @@ public class ChatMessage implements Serializable {
 
     @Exclude
     private String id;
-
     private String senderId;
     private String receivedId;
     private String message;
@@ -18,14 +17,15 @@ public class ChatMessage implements Serializable {
     public ChatMessage() {
     }
 
+    @Exclude
     public String getId() {
         return id;
     }
 
+    @Exclude
     public void setId(String id) {
         this.id = id;
     }
-
 
     public String getSenderId() {
         return senderId;

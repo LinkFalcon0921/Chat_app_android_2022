@@ -7,6 +7,7 @@ import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_IMAGE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_IS_SIGNED_IN;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_ID;
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_OBJ;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -200,14 +201,16 @@ public class SignUpActivity extends AppCompatActivity {
         this.preferencesManager.put(KEY_IS_SIGNED_IN,
                 true);
 
+        User user = (User) data.get(KEY_USER_OBJ);
+
         this.preferencesManager.put(KEY_USER_ID,
-                data.get(KEY_USER_ID).toString());
+                user.getId());
 
         this.preferencesManager.put(KEY_ALIAS,
-                data.get(KEY_ALIAS).toString());
+                user.getAlias());
 
         this.preferencesManager.put(KEY_IMAGE,
-                data.get(KEY_IMAGE).toString());
+                user.getImage());
     }
 
     private Intent goToMainIntent() {

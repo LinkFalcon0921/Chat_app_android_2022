@@ -31,10 +31,12 @@ public class User implements Serializable {
         this.token = token;
     }
 
+    @Exclude
     public String getId() {
         return id;
     }
 
+    @Exclude
     public void setId(String id) {
         this.id = id;
     }

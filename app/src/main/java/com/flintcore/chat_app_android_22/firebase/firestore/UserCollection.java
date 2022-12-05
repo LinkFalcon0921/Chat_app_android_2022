@@ -9,7 +9,7 @@ import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_LOGIN_OBJ;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_PASS;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USERS_LIST;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_ID;
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_OBJ;
 
 import androidx.annotation.NonNull;
 
@@ -18,6 +18,7 @@ import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class UserCollection extends FirebaseConnection<String, User> {
 
@@ -59,26 +61,24 @@ public class UserCollection extends FirebaseConnection<String, User> {
     @Override
     public void getCollections(String userId, Call onSuccess, Call onFail) {
 
-        this.collection.get()
+        this.collection
+                .whereNotEqualTo(FieldPath.documentId(), userId)
+                .get()
                 .addOnSuccessListener(result -> {
-                    List<DocumentSnapshot> documents = result.getDocuments();
 
-                    if (documents.isEmpty()) {
+                    if (result.getDocuments().isEmpty()) {
                         Exception ex = new RuntimeException(NO_USERS_AVAILABLE);
                         callOnFail(onFail, ex);
                         return;
                     }
 
                     Map<String, Object> values = new HashMap<>();
-                    List<User> users = new LinkedList<>();
+                    List<User> users = result.getDocuments()
+                            .stream()
+                            .map(this::filterAllUserDocumentData)
+                                    .collect(Collectors.toList());
 
-                    documents.stream().filter(u -> !u.getId().equals(userId)).forEach(document -> {
-                        User user = filterAllUserDocumentData(document);
-
-                        users.add(user);
-                    });
-
-                    values.put(KEY_USERS_LIST, Optional.ofNullable(users));
+                    values.put(KEY_USERS_LIST, Optional.of(users));
                     onSuccess.start(values);
                 })
                 .addOnFailureListener(fail -> {
@@ -89,28 +89,13 @@ public class UserCollection extends FirebaseConnection<String, User> {
 
     @NonNull
     private User filterAllUserDocumentData(DocumentSnapshot document) {
-        String id = document.getId();
-        String image = document.get(KEY_IMAGE, String.class);
-        String alias = document.get(KEY_ALIAS, String.class);
-        String token = document.get(KEY_FMC_TOKEN, String.class);
-
-        User user = new User();
-        user.setId(id);
-        user.setImage(image);
-        user.setAlias(alias);
-        user.setToken(token);
-
-        UserAccess userAccess = document.get(KEY_LOGIN_OBJ, UserAccess.class);
-
-//        UserAccess userAccess = new UserAccess();
-//        userAccess.setEmail(email);
-//        userAccess.setPass(pass);
-
-        user.setUserAccess(userAccess);
+        User user = document.toObject(User.class);
+        user.setId(document.getId());
         return user;
     }
 
     @Override
+    @Deprecated
     public void getCollections(Call onSuccess, Call onFail) {
 
         this.collection.get()
@@ -122,34 +107,13 @@ public class UserCollection extends FirebaseConnection<String, User> {
                         callOnFail(onFail, ex);
                         return;
                     }
-                    Map<String, Object> values = new HashMap<>();
-                    List<User> users = new LinkedList<>();
+                    Map<String, Object> results = new HashMap<>();
+                    List<User> users = documents.stream()
+                            .map(this::filterAllUserDocumentData)
+                            .collect(Collectors.toList());
 
-                    documents.forEach(document -> {
-                        String id = document.getId();
-                        String image = document.get(KEY_IMAGE, String.class);
-                        String alias = document.get(KEY_ALIAS, String.class);
-
-                        Map<String, Object> access = document.get(KEY_LOGIN_OBJ, Map.class);
-                        String email = (String) access.get(KEY_EMAIL);
-                        String pass = (String) access.get(KEY_PASS);
-
-                        User user = new User();
-                        user.setId(id);
-                        user.setImage(image);
-                        user.setAlias(alias);
-
-                        UserAccess userAccess = new UserAccess();
-                        userAccess.setEmail(email);
-                        userAccess.setPass(pass);
-
-                        user.setUserAccess(userAccess);
-
-                        users.add(user);
-                    });
-
-                    values.put(KEY_USERS_LIST, users);
-                    onSuccess.start(values);
+                    results.put(KEY_USERS_LIST, Optional.of(users));
+                    onSuccess.start(results);
                 })
                 .addOnFailureListener(fail -> {
                     callOnFail(onFail, new RuntimeException("No users available"));
@@ -177,16 +141,9 @@ public class UserCollection extends FirebaseConnection<String, User> {
 
     }
 
-    private void callOnFail(Call onFail, Exception e) {
-        Map<String, Object> results = new HashMap<>();
-        results.put(FirebaseConstants.Results.MESSAGE, e.getMessage());
-        onFail.start(results);
-    }
-
     private void loadData(Query referenceQuery, Call onSuccess, Call onFail) {
         referenceQuery.get()
                 .addOnCompleteListener(result -> {
-
                     QuerySnapshot documentSnapshots = result.getResult();
                     if (result.isSuccessful() && documentSnapshots != null) {
                         HashMap<String, Object> hashMap = new HashMap<>();
@@ -201,13 +158,9 @@ public class UserCollection extends FirebaseConnection<String, User> {
                         DocumentSnapshot actDoc = snapshotList.get(0);
                         Map<String, Object> results = hashMap;
 
-                        String id = actDoc.getId();
-                        String alias = (String) actDoc.get(KEY_ALIAS);
-                        String image = ((String) actDoc.get(KEY_IMAGE));
-
-                        results.put(KEY_USER_ID, id);
-                        results.put(KEY_ALIAS, alias);
-                        results.put(KEY_IMAGE, image);
+                        User user = actDoc.toObject(User.class);
+                        user.setId(actDoc.getId());
+                        results.put(KEY_USER_OBJ, user);
 
                         onSuccess.start(results);
                     }
@@ -219,36 +172,23 @@ public class UserCollection extends FirebaseConnection<String, User> {
     }
 
     @Override
-    public void getCollection(String s, Call onSuccess, Call onFail) {
+    public void getCollection(String userId, Call onSuccess, Call onFail) {
     }
 
     @Override
     public void addCollection(User user, Call onSuccess, Call onFail) {
-        Map<String, Object> data;
+        Map<String, Object> data = new HashMap<>();
 
-        data = new HashMap<>();
-
-        data.put(KEY_ALIAS, user.getAlias());
-        data.put(KEY_IMAGE, user.getImage());
-        data.put(KEY_LOGIN_OBJ, user.getUserAccess());
-
-        Map<String, Object> results = new HashMap<>();
-        this.collection.add(data)
+        this.collection.add(user)
                 .addOnSuccessListener(result -> {
-                    data.clear();
+                    user.setId(result.getId());
+                    data.put(KEY_USER_OBJ, user);
 
-                    results.put("message", "User created.");
-                    results.put(KEY_USER_ID, result.getId());
-                    results.put(KEY_ALIAS, user.getAlias());
-                    results.put(KEY_IMAGE, user.getImage());
-
-                    onSuccess.start(results);
-
+                    onSuccess.start(data);
                 })
                 .addOnFailureListener(fail -> {
                     callOnFail(onFail, fail);
                 });
-
     }
 
     @Override
@@ -293,4 +233,11 @@ public class UserCollection extends FirebaseConnection<String, User> {
                     onFail.start(values);
                 });
     }
+
+    private void callOnFail(Call onFail, Exception e) {
+        Map<String, Object> results = new HashMap<>();
+        results.put(FirebaseConstants.Results.MESSAGE, e.getMessage());
+        onFail.start(results);
+    }
+
 }

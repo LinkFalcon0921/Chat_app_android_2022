@@ -9,6 +9,7 @@ import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_LOGIN_OBJ;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_PASS;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_ID;
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_OBJ;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -23,6 +24,7 @@ import com.flintcore.chat_app_android_22.MainActivity;
 import com.flintcore.chat_app_android_22.databinding.ActivitySignInBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
+import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
@@ -117,14 +119,16 @@ public class SignInActivity extends AppCompatActivity {
         this.preferencesManager.put(KEY_IS_SIGNED_IN,
                 true);
 
+        User user = (User) data.get(KEY_USER_OBJ);
+
         this.preferencesManager.put(KEY_USER_ID,
-                data.get(KEY_USER_ID).toString());
+                user.getId());
 
         this.preferencesManager.put(KEY_ALIAS,
-                data.get(KEY_ALIAS).toString());
+                user.getAlias());
 
         this.preferencesManager.put(KEY_IMAGE,
-                data.get(KEY_IMAGE).toString());
+                user.getImage());
     }
 
     private Intent goToMainIntent() {
