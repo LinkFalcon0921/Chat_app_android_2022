@@ -2,6 +2,7 @@ package com.flintcore.chat_app_android_22.activities;
 
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.NO_USERS_AVAILABLE;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 
@@ -12,6 +13,7 @@ import com.flintcore.chat_app_android_22.databinding.ActivityUserBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
 import com.flintcore.chat_app_android_22.firebase.models.User;
+import com.flintcore.chat_app_android_22.listeners.OnRecyclerItemListener;
 import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
@@ -21,7 +23,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 
-public class UserActivity extends AppCompatActivity {
+public class UserActivity extends AppCompatActivity implements OnRecyclerItemListener<User> {
 
     private ActivityUserBinding binding;
     private PreferencesManager loggedPreferencesManager;
@@ -42,7 +44,7 @@ public class UserActivity extends AppCompatActivity {
         loadUsersInView();
     }
 
-    private void setListeners(){
+    private void setListeners() {
         this.binding.backBtn.setOnClickListener(v -> onBackPressed());
     }
 
@@ -52,7 +54,8 @@ public class UserActivity extends AppCompatActivity {
         };
     }
 
-//    Charge all the users available in the database.
+    //    Charge all the users available in the database.
+//    Recycler creation here
     private void loadUsersInView() {
         startLoadUsers(true);
 
@@ -63,7 +66,8 @@ public class UserActivity extends AppCompatActivity {
             if (Objects.nonNull(users) && users.isPresent()) {
                 startLoadUsers(false);
 
-                RecyclerUserView recyclerAdapter = new RecyclerUserView(users.get());
+//              Recycler view
+                RecyclerUserView recyclerAdapter = new RecyclerUserView(users.get(), this);
                 this.binding.recyclerUserList.setAdapter(recyclerAdapter);
                 this.binding.recyclerUserList.setVisibility(View.VISIBLE);
                 this.binding.progressBar.setVisibility(View.GONE);
@@ -91,5 +95,14 @@ public class UserActivity extends AppCompatActivity {
         } else {
             this.binding.progressBar.setVisibility(View.INVISIBLE);
         }
+    }
+
+    //    Recycler view item selection
+    @Override
+    public void onClick(User user) {
+        Intent chatUserIntent = new Intent(getApplicationContext(), ChatSimpleActivity.class);
+        chatUserIntent.putExtra(FirebaseConstants.Users.KEY_USER_OBJ, user);
+        startActivity(chatUserIntent);
+        finish();
     }
 }

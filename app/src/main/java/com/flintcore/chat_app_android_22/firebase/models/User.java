@@ -1,5 +1,8 @@
 package com.flintcore.chat_app_android_22.firebase.models;
 
+import android.os.Parcel;
+import android.os.Parcelable;
+
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
 
 import java.io.Serializable;
@@ -7,7 +10,6 @@ import java.util.Objects;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 
 @Data
 @NoArgsConstructor
@@ -18,7 +20,6 @@ public class User implements Serializable {
     private String alias;
     private String image;
     private UserAccess userAccess;
-
 
     public String getToken() {
         return token;
@@ -72,4 +73,5 @@ public class User implements Serializable {
     public int hashCode() {
         return Objects.hash(id, alias, image, userAccess);
     }
+
 }

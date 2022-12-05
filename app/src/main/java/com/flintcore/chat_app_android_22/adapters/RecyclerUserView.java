@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.flintcore.chat_app_android_22.databinding.UserItemContainerBinding;
 import com.flintcore.chat_app_android_22.firebase.models.User;
+import com.flintcore.chat_app_android_22.listeners.OnRecyclerItemListener;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 import com.makeramen.roundedimageview.RoundedImageView;
 
@@ -19,10 +20,12 @@ import java.util.List;
 
 public class RecyclerUserView extends RecyclerView.Adapter<RecyclerUserView.UserViewHolder> {
 
+    private final OnRecyclerItemListener<User> onClickRecycler;
     private final List<User> users;
 
-    public RecyclerUserView(List<User> users) {
+    public RecyclerUserView(List<User> users, OnRecyclerItemListener<User> onClickRecycler) {
         this.users = users;
+        this.onClickRecycler = onClickRecycler;
     }
 
     @NonNull
@@ -63,6 +66,7 @@ public class RecyclerUserView extends RecyclerView.Adapter<RecyclerUserView.User
         public void setDataUser(User user){
             this.binding.nameTxt.setText(user.getAlias());
             applyImage(user.getImage(), this.binding.ImagePreview);
+            this.itemView.setOnClickListener(v -> onClickRecycler.onClick(user));
         }
     }
 }

@@ -23,9 +23,9 @@ public interface FirebaseConstants {
 
     interface Users{
         String COLLECTION = "users";
+        String KEY_USER_OBJ = "user";
         String KEY_ALIAS = "alias";
         String KEY_IMAGE = "image";
-        String KEY_USER_OBJ = "user_obj";
         String KEY_LOGIN_OBJ = "userAccess";
         String KEY_EMAIL = "email";
         String KEY_PASS = "pass";
