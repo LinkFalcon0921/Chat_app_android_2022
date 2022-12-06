@@ -66,14 +66,15 @@ public class UserCollection extends FirebaseConnection<String, User> {
                 .get()
                 .addOnSuccessListener(result -> {
 
-                    if (result.getDocuments().isEmpty()) {
+                    List<DocumentSnapshot> documents = result.getDocuments();
+                    if (documents.isEmpty()) {
                         Exception ex = new RuntimeException(NO_USERS_AVAILABLE);
                         callOnFail(onFail, ex);
                         return;
                     }
 
                     Map<String, Object> values = new HashMap<>();
-                    List<User> users = result.getDocuments()
+                    List<User> users = documents
                             .stream()
                             .map(this::filterAllUserDocumentData)
                                     .collect(Collectors.toList());
@@ -150,8 +151,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
 
                         List<DocumentSnapshot> snapshotList = documentSnapshots.getDocuments();
                         if (snapshotList.isEmpty()) {
-                            hashMap.put(FirebaseConstants.Results.MESSAGE, "The credentials does not exists");
-                            onFail.start(hashMap);
+                            callOnFail(onFail, new RuntimeException("The user does not exists"));
                             return;
                         }
 
@@ -166,13 +166,29 @@ public class UserCollection extends FirebaseConnection<String, User> {
                     }
 
                 }).addOnFailureListener(fail -> {
-                    HashMap<String, Object> hashMap = new HashMap<>();
-                    hashMap.put(FirebaseConstants.Results.MESSAGE, "The user does not exists");
+                    callOnFail(onFail, fail);
                 });
     }
 
     @Override
     public void getCollection(String userId, Call onSuccess, Call onFail) {
+        this.collection.document(userId)
+                .get()
+                .addOnCompleteListener(result -> {
+                    if (!result.isSuccessful() || !result.getResult().exists()){
+
+                    }
+
+                    DocumentSnapshot documentSnapshot = result.getResult();
+                    User user = documentSnapshot.toObject(User.class);
+                    user.setId(documentSnapshot.getId());
+
+                    HashMap<String, Object> hashMap = new HashMap<>();
+                    hashMap.put(KEY_USER_OBJ, user);
+
+                    onSuccess.start(hashMap);
+                })
+                .addOnFailureListener(fail -> callOnFail(onFail, fail));
     }
 
     @Override

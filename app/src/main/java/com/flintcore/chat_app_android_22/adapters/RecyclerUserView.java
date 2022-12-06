@@ -66,6 +66,7 @@ public class RecyclerUserView extends RecyclerView.Adapter<RecyclerUserView.User
         public void setDataUser(User user){
             this.binding.nameTxt.setText(user.getAlias());
             applyImage(user.getImage(), this.binding.ImagePreview);
+            this.binding.secondOptionalTxt.setText(user.getUserAccess().getEmail());
             this.itemView.setOnClickListener(v -> onClickRecycler.onClick(user));
         }
     }

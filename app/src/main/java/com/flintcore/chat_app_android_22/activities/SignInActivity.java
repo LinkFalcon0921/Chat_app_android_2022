@@ -20,7 +20,6 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.flintcore.chat_app_android_22.MainActivity;
 import com.flintcore.chat_app_android_22.databinding.ActivitySignInBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
@@ -91,7 +90,7 @@ public class SignInActivity extends AppCompatActivity {
         values.put(KEY_EMAIL, email);
         values.put(KEY_PASS, pass);
 
-        Call onFail = data ->  {
+        Call onFail = data -> {
             startFirebaseRequest(false);
             getOnFailFirebaseConnection().start(data);
         };

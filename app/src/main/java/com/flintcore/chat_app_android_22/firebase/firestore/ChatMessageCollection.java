@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.models.ChatMessage;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -89,8 +90,18 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
 
 
     @Override
-    public void getCollection(String s, Call onSuccess, Call onFail) {
+    public void getCollection(String chatMessageId, Call onSuccess, Call onFail) {
+        this.collection.document(chatMessageId)
+                .get()
+                .addOnSuccessListener(result -> {
+                    HashMap<String, Object> hashMap = getHashMap();
+                    ChatMessage message = result.toObject(ChatMessage.class);
+                    message.setId(chatMessageId);
 
+                    hashMap.put(KEY_CHAT_OBJ , message);
+                    onSuccess.start(hashMap);
+                })
+                .addOnFailureListener(fail -> callOnFail(onFail, fail));
     }
 
     @Override
@@ -101,7 +112,15 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
     @Override
     public void addCollection(ChatMessage chatMessage, Call onSuccess, Call onFail) {
         this.collection.add(chatMessage)
-                .addOnCompleteListener(result -> onSuccess.start(null))
+                .addOnCompleteListener(result -> {
+                    if (result.isCanceled() || !result.isSuccessful()) {
+                        callOnFail(onFail, throwDefaultException("Unable to send"));
+                    }
+                    DocumentReference document = result.getResult();
+                    chatMessage.setId(document.getId());
+
+                    onSuccess.start(null);
+                })
                 .addOnFailureListener(fail -> {
                     fail = new RuntimeException(FirebaseConstants.Messages.FAIL_GET_RESPONSE);
                     callOnFail(onFail, fail);

@@ -47,6 +47,19 @@ public interface FirebaseConstants {
 
         //        Defaults
         String KEY_LIST_CHATS = "chatsMessagesList";
+        String KEY_CHAT_OBJ = "conversationObj";
 
+    }
+    interface Conversations{
+        String KEY_COLLECTION = "conversations";
+        String KEY_ID = "conversationId";
+        String KEY_LAST_MESSAGE_ID = "lastMessageId";
+//        String KEY_SENDER_ID = "conversationSenderId";
+//        String KEY_RECEIVER_ID = "conversationReceiverId";
+        String KEY_LAST_DATE = "lastDateSent";
+
+//      Defaults
+        String KEY_CHAT_CONVERSATIONS = "conversationList";
+        String KEY_CONVERSATION_OBJ = "conversationObj";
     }
 }

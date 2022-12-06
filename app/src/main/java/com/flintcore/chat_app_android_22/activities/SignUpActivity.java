@@ -25,7 +25,6 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.flintcore.chat_app_android_22.MainActivity;
 import com.flintcore.chat_app_android_22.databinding.ActivitySignUpBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
@@ -39,7 +38,6 @@ import com.makeramen.roundedimageview.RoundedDrawable;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;

@@ -1,5 +1,6 @@
 package com.flintcore.chat_app_android_22.firebase.models;
 
+import com.flintcore.chat_app_android_22.firebase.models.embbebed.Conversation;
 import com.google.firebase.firestore.Exclude;
 
 import java.io.Serializable;
