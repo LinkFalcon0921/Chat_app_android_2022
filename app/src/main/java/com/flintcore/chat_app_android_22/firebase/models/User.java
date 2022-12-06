@@ -18,11 +18,13 @@ public class User implements Serializable {
 
     @Exclude
     private String id;
+    @Exclude
     private String token;
     private String alias;
     private String image;
     private UserAccess userAccess;
 
+    @Exclude
     public String getToken() {
         return token;
     }
@@ -36,7 +38,6 @@ public class User implements Serializable {
         return id;
     }
 
-    @Exclude
     public void setId(String id) {
         this.id = id;
     }

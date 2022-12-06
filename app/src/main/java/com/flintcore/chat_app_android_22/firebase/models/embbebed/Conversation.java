@@ -8,18 +8,23 @@ import java.util.Date;
 public class Conversation {
     @Exclude
     private String id;
+
     private String lastMessageId;
     private Date lastDateSent;
 
+
     @Exclude
     private String senderImage;
+    @Exclude
+    private String message;
+    @Exclude
+    private String senderName;
 
     @Exclude
     public String getId() {
         return id;
     }
 
-    @Exclude
     public void setId(String conversationId) {
         this.id = conversationId;
     }
@@ -33,13 +38,30 @@ public class Conversation {
         return senderImage;
     }
 
-    @Exclude
     public void setSenderImage(String senderImage) {
         this.senderImage = senderImage;
     }
 
     public void setLastMessageId(String lastMessageId) {
         this.lastMessageId = lastMessageId;
+    }
+
+    @Exclude
+    public String getMessage() {
+        return message;
+    }
+
+    @Exclude
+    public String getSenderName() {
+        return senderName;
+    }
+
+    public void setSenderName(String senderName) {
+        this.senderName = senderName;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
     }
 
     public Date getLastDateSent() {

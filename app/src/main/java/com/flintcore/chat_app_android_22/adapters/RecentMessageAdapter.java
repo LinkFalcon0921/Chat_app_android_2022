@@ -8,18 +8,20 @@ import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.SortedList;
 
 import com.flintcore.chat_app_android_22.databinding.UserRecentItemContainerBinding;
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.Conversation;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 
+import java.util.Collection;
 import java.util.List;
 
 public class RecentMessageAdapter extends RecyclerView.Adapter<RecentMessageAdapter.ConversationHolder> {
 
-    private final List<Conversation> recentMessages;
+    private final Collection<Conversation> recentMessages;
 
-    public RecentMessageAdapter(List<Conversation> recentMessages) {
+    public RecentMessageAdapter(Collection<Conversation> recentMessages) {
         this.recentMessages = recentMessages;
     }
 
@@ -41,7 +43,7 @@ public class RecentMessageAdapter extends RecyclerView.Adapter<RecentMessageAdap
 
     @Override
     public void onBindViewHolder(@NonNull ConversationHolder holder, int position) {
-        holder.setData(this.recentMessages.get(position));
+        holder.setData(this.recentMessages.toArray(new Conversation[0])[position]);
     }
 
     @Override
@@ -53,7 +55,7 @@ public class RecentMessageAdapter extends RecyclerView.Adapter<RecentMessageAdap
 
     static class ConversationHolder extends RecyclerView.ViewHolder {
 
-        private UserRecentItemContainerBinding binding;
+        private final UserRecentItemContainerBinding binding;
 
         public ConversationHolder(@NonNull UserRecentItemContainerBinding binding) {
             super(binding.getRoot());
@@ -62,8 +64,8 @@ public class RecentMessageAdapter extends RecyclerView.Adapter<RecentMessageAdap
 
         public void setData(Conversation recentMessage) {
             applyImage(recentMessage.getSenderImage(), this.binding.ImagePreview);
-            this.binding.nameTxt.setText(recentMessage.getLastMessageId());
-            this.binding.secondOptionalTxt.setText(recentMessage.getLastMessageId());
+            this.binding.nameTxt.setText(recentMessage.getSenderName());
+            this.binding.secondOptionalTxt.setText(Encryptions.decrypt(recentMessage.getMessage()));
         }
     }
 }

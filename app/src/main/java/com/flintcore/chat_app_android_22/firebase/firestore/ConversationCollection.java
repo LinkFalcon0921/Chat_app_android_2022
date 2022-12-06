@@ -71,14 +71,12 @@ public class ConversationCollection implements ConversationCollectionActions<Str
 
     public void getCollection(ChatMessage message,
                               OnCompleteListener<QuerySnapshot> onComplete, Call onFail) {
-
         this.collection
                 .whereEqualTo(KEY_SENDER, message.getSenderId())
                 .whereEqualTo(KEY_RECEIVED, message.getReceivedId())
                 .get()
                 .addOnCompleteListener(onComplete)
                 .addOnFailureListener(fail -> callOnFail(onFail, fail));
-
     }
 
     @Override

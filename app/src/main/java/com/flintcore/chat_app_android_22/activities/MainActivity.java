@@ -35,16 +35,18 @@ import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.QuerySnapshot;
 
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.TreeSet;
+import java.util.function.Consumer;
 
-public class MainActivity extends AppCompatActivity
-        implements EventListener<QuerySnapshot> {
+public class MainActivity extends AppCompatActivity implements EventListener<QuerySnapshot> {
 
-    private boolean flagFirstLogin = true;
+    private boolean flagFirstLogin;
     private ActivityMainBinding binding;
     private PreferencesManager loggedPreferencesManager;
     private UserCollection userCollection;
@@ -52,7 +54,7 @@ public class MainActivity extends AppCompatActivity
     private ChatMessageCollection chatMessageCollection;
 
     private RecentMessageAdapter recentMessageAdapter;
-    private List<Conversation> conversations;
+    private Collection<Conversation> conversations;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,8 +62,7 @@ public class MainActivity extends AppCompatActivity
         this.binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(this.binding.getRoot());
 
-        this.loggedPreferencesManager = new PreferencesManager(getApplicationContext(),
-                FirebaseConstants.SharedReferences.KEY_CHAT_USER_LOGGED_PREFERENCES);
+        this.loggedPreferencesManager = new PreferencesManager(getApplicationContext(), FirebaseConstants.SharedReferences.KEY_CHAT_USER_LOGGED_PREFERENCES);
 
         setFireStoreConnection();
 //        TODO logic to offline
@@ -79,8 +80,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onEvent(@Nullable QuerySnapshot value, @Nullable FirebaseFirestoreException error) {
         if (Objects.nonNull(error) || Objects.isNull(value)) {
-            MessagesAppGenerator.showToast(getApplicationContext(),
-                    "Check ethernet connection", FAIL_GET_RESPONSE);
+            MessagesAppGenerator.showToast(getApplicationContext(), "Check internet connection", FAIL_GET_RESPONSE);
         }
 
         List<DocumentChange> documentChanges = value.getDocumentChanges();
@@ -90,70 +90,88 @@ public class MainActivity extends AppCompatActivity
         }
 //        todo set filter of user.
 
+        int actualConversationSize = this.conversations.size();
+
         String userId = this.loggedPreferencesManager.getString(KEY_USER_ID);
 
-        documentChanges.stream()
-                .filter(doc -> doc.getType().equals(DocumentChange.Type.ADDED))
+        documentChanges.stream().filter(doc -> doc.getType().equals(DocumentChange.Type.ADDED))
                 .map(DocumentChange::getDocument)
                 .map(doc -> {
                     Conversation newConversation = doc.toObject(Conversation.class);
                     newConversation.setId(doc.getId());
 
-                    this.chatMessageCollection.getCollection(newConversation.getLastMessageId(),
-                            dataChat -> {
-                                ChatMessage message = (ChatMessage) dataChat.get(KEY_CHAT_OBJ);
-                                // TODO
-                                String sender = userId.equals(message.getSenderId()) ?
-                                        message.getReceivedId() : message.getSenderId();
-
-                                this.userCollection.getCollection(sender,
-                                        dataUser -> {
-                                            User user = (User) dataUser.get(FirebaseConstants.Users.KEY_USER_OBJ);
-                                            newConversation.setSenderImage(user.getImage());
-                                        },
-                                        getOnFailFirebaseConnection());
-
-                            },
-                            getOnFailFirebaseConnection());
+                    setAdditionalConversationData(newConversation, userId);
 
                     return newConversation;
-                }).forEach(this.conversations::add);
+                })
+                .forEach(this.conversations::add);
 
-        documentChanges.stream()
-                .filter(doc -> doc.getType().equals(DocumentChange.Type.MODIFIED))
+
+        // todo to check
+
+        documentChanges.stream().filter(doc -> doc.getType().equals(DocumentChange.Type.MODIFIED))
+                .onClose(getOnFinishLoadConversations())
                 .map(DocumentChange::getDocument)
                 .forEach(doc -> {
-                    this.conversations.stream()
-                            //TODO
-
-                            .filter(cv -> cv.getId().equals(doc.getId()))
-                            .findFirst().ifPresent(cv -> {
-                                Conversation updatedConversation = doc.toObject(Conversation.class);
-                                cv.setLastMessageId(updatedConversation.getLastMessageId());
-                                cv.setSenderImage(updatedConversation.getSenderImage());
-                                cv.setLastDateSent(updatedConversation.getLastDateSent());
-                            });
+                    Conversation conversation = doc.toObject(Conversation.class);
+                    setAdditionalConversationData(conversation, userId);
                 });
 
-        this.conversations.sort(Comparator.comparing(Conversation::getLastDateSent));
-        this.recentMessageAdapter.notifyDataSetChanged();
-        this.binding.recentConversationsRecycler.smoothScrollToPosition(0);
-        this.binding.recentConversationsRecycler.setVisibility(View.VISIBLE);
-        this.binding.progressBar.setVisibility(View.GONE);
+    }
+
+    //    Update action when all actions done.
+    private Runnable getOnFinishLoadConversations() {
+        return () -> {
+            this.recentMessageAdapter.notifyDataSetChanged();
+
+            this.flagFirstLogin = false;
+
+            this.binding.recentConversationsRecycler.smoothScrollToPosition(0);
+            this.binding.recentConversationsRecycler.setVisibility(View.VISIBLE);
+            this.binding.progressBar.setVisibility(View.GONE);
+        };
+    }
+
+    private void setAdditionalConversationData(Conversation conversation, String userId) {
+        this.chatMessageCollection.getCollection(conversation.getLastMessageId(),
+                dataChat -> {
+                    ChatMessage message = (ChatMessage) dataChat.get(KEY_CHAT_OBJ);
+                    if (Objects.isNull(message)) {
+                        return;
+                    }
+
+                    conversation.setMessage(message.getMessage());
+
+                    // TODO
+                    String sender = userId.equals(message.getSenderId()) ? message.getReceivedId() : message.getSenderId();
+
+                    this.userCollection.getCollection(sender,
+                            dataUser -> {
+                                User user = (User) dataUser.get(FirebaseConstants.Users.KEY_USER_OBJ);
+                                if (Objects.isNull(user)) {
+                                    return;
+                                }
+
+                                conversation.setSenderName(user.getAlias());
+                                conversation.setSenderImage(user.getImage());
+
+//                                Refresh the view
+                                getOnFinishLoadConversations().run();
+                            }, getOnFailFirebaseConnection());
+
+                }, getOnFailFirebaseConnection());
     }
 
     private void setFireStoreConnection() {
         this.userCollection = UserCollection.getInstance(getOnFailFirebaseConnection());
 
-        this.conversationCollection = ConversationCollection
-                .getConversationInstance(getOnFailFirebaseConnection());
+        this.conversationCollection = ConversationCollection.getConversationInstance(getOnFailFirebaseConnection());
 
-        this.chatMessageCollection = ChatMessageCollection
-                .getChatMessageCollectionInstance(getOnFailFirebaseConnection());
+        this.chatMessageCollection = ChatMessageCollection.getChatMessageCollectionInstance(getOnFailFirebaseConnection());
     }
 
     private void loadRecentMessages() {
-        this.conversations = new LinkedList<>();
+        this.conversations = new TreeSet<>(Comparator.comparing(Conversation::getLastDateSent));
         this.recentMessageAdapter = new RecentMessageAdapter(this.conversations);
         this.binding.recentConversationsRecycler.setAdapter(this.recentMessageAdapter);
     }
@@ -166,29 +184,53 @@ public class MainActivity extends AppCompatActivity
 
             QuerySnapshot taskResult = task.getResult();
 
-            taskResult.getDocuments()
-                    .forEach(documentSnapshot -> {
-                        Conversation c = documentSnapshot.toObject(Conversation.class);
-                        if (Objects.isNull(c)){
-                            return;
-                        }
+            taskResult.getDocuments().forEach(documentSnapshot -> {
+                Conversation c = documentSnapshot.toObject(Conversation.class);
+                if (Objects.isNull(c)) {
+                    return;
+                }
+//                        Get the conversation
+                this.chatMessageCollection.getCollection(c.getLastMessageId(), data -> {
+                    ChatMessage msg = (ChatMessage) data.get(KEY_CHAT_OBJ);
 
-                        this.chatMessageCollection.getCollection(
-                                c.getLastMessageId(),
-                                data -> {
-                                    ChatMessage msg = (ChatMessage) data.get(KEY_CHAT_OBJ);
+                    if (Objects.isNull(msg)) {
+                        return;
+                    }
 
-                                    HashMap<String, Object> hashMap = getNewHashMap();
-                                    hashMap.put(KEY_LAST_MESSAGE_ID, msg.getId());
-                                    this.conversationCollection.applyCollectionListener(hashMap, this);
-                                },
-                                fail -> MessagesAppGenerator.showToast(getApplicationContext(),
-                                        fail.get(MESSAGE).toString(), FAIL_GET_RESPONSE));
-                    });
+                    HashMap<String, Object> hashMap = getNewHashMap();
+                    hashMap.put(KEY_LAST_MESSAGE_ID, msg.getId());
+                    this.conversationCollection.applyCollectionListener(hashMap, this);
+                }, fail -> MessagesAppGenerator.showToast(getApplicationContext(), fail.get(MESSAGE).toString(), FAIL_GET_RESPONSE));
+            });
 
         };
 
         this.conversationCollection.applyCollectionListener(getChatsRelated);
+    }
+
+    @NonNull
+    private void getOptionalConversation(String id, Consumer<Conversation> consumer, Runnable onFail) {
+        Optional<Conversation> conversationOptional = this.conversations.stream().filter(cv -> cv.getId().equals(id)).findFirst();
+
+        if (!conversationOptional.isPresent()) {
+            onFail.run();
+            return;
+        }
+
+        conversationOptional.ifPresent(consumer);
+    }
+
+    @NonNull
+    private void getOptionalConversation(ChatMessage msg, Consumer<Conversation> consumer, Runnable onFail) {
+        Optional<Conversation> conversationOptional = this.conversations.stream()
+                .filter(cv -> cv.getLastMessageId().equals(msg.getId())).findFirst();
+
+        if (!conversationOptional.isPresent()) {
+            onFail.run();
+            return;
+        }
+
+        conversationOptional.ifPresent(consumer);
     }
 
     @NonNull
@@ -208,8 +250,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void signOutUser() {
-        String userId = this.loggedPreferencesManager
-                .getString(KEY_USER_ID);
+        String userId = this.loggedPreferencesManager.getString(KEY_USER_ID);
 
 
         Call onSuccess = unused -> {
@@ -234,9 +275,7 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
-
-        String userId = this.loggedPreferencesManager
-                .getString(KEY_USER_ID);
+        String userId = this.loggedPreferencesManager.getString(KEY_USER_ID);
 
         Call onSuccess = data -> {
             MessagesAppGenerator.showToast(getApplicationContext(), "Sign in successfully!", FAIL_GET_RESPONSE);
@@ -249,10 +288,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void loadLoggedImage() {
-        byte[] imageBytes = Encryptions.decryptAndroidImageFromString(
-                this.loggedPreferencesManager
-                        .getString(FirebaseConstants.Users.KEY_IMAGE)
-        );
+        byte[] imageBytes = Encryptions.decryptAndroidImageFromString(this.loggedPreferencesManager.getString(FirebaseConstants.Users.KEY_IMAGE));
 
         Bitmap imageBit = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
         this.binding.imagePreview.setImageBitmap(imageBit);

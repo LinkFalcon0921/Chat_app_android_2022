@@ -93,9 +93,15 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
     public void getCollection(String chatMessageId, Call onSuccess, Call onFail) {
         this.collection.document(chatMessageId)
                 .get()
-                .addOnSuccessListener(result -> {
+                .addOnCompleteListener(result -> {
+                    if (!result.isSuccessful() || result.isCanceled()){
+                        return;
+                    }
+
+                    DocumentSnapshot documentSnapshot = result.getResult();
+
                     HashMap<String, Object> hashMap = getHashMap();
-                    ChatMessage message = result.toObject(ChatMessage.class);
+                    ChatMessage message = documentSnapshot.toObject(ChatMessage.class);
                     message.setId(chatMessageId);
 
                     hashMap.put(KEY_CHAT_OBJ , message);
@@ -115,6 +121,7 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
                 .addOnCompleteListener(result -> {
                     if (result.isCanceled() || !result.isSuccessful()) {
                         callOnFail(onFail, throwDefaultException("Unable to send"));
+                        return;
                     }
                     DocumentReference document = result.getResult();
                     chatMessage.setId(document.getId());

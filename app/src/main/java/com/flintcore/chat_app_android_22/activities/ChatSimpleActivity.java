@@ -76,6 +76,7 @@ public class ChatSimpleActivity extends AppCompatActivity
             HashMap<String, Object> hashMap = new HashMap<>();
             hashMap.put(MESSAGE, error.getMessage());
             getDefaultOnFailCall().start(hashMap);
+            return;
         }
 
         int previousChangeCount = this.chatMessages.size();
@@ -85,7 +86,6 @@ public class ChatSimpleActivity extends AppCompatActivity
 
             switch (documentChange.getType()) {
 
-                default:
                 case ADDED:
                     ChatMessage newChatMessage = documentSnapshot
                             .toObject(ChatMessage.class);
@@ -117,7 +117,7 @@ public class ChatSimpleActivity extends AppCompatActivity
 
     }
 
-//    Called when a recent conversation is created or updated.
+    //    Called when a recent conversation is created or updated.
     @Override
     public void onComplete(@NonNull Task<QuerySnapshot> task) {
         QuerySnapshot documentSnapshots = task.getResult();
@@ -133,7 +133,6 @@ public class ChatSimpleActivity extends AppCompatActivity
 
         DocumentSnapshot document = documents.get(0);
         this.actualConversation = document.toObject(Conversation.class);
-
         this.actualConversation.setId(document.getId());
     }
 
@@ -143,7 +142,7 @@ public class ChatSimpleActivity extends AppCompatActivity
                 "No chats recently", FAIL_GET_RESPONSE);
     }
 
-//    Called when a recent conversation is updated and ready to notify notify
+    //    Called when a recent conversation is updated and ready to notify notify
     @Override
     public void onSuccess(DocumentReference document) {
         document.get()
@@ -206,7 +205,6 @@ public class ChatSimpleActivity extends AppCompatActivity
         this.binding.chatMessageRecycler.setAdapter(this.chatAdapter);
 
         listenMessages();
-
     }
 
     //    Set a listener for notify new messages
@@ -217,17 +215,17 @@ public class ChatSimpleActivity extends AppCompatActivity
 
         ChatMessage message = this.chatMessages.get(this.chatMessages.size() - 1);
 
-        this.conversationCollection
-                .getCollection(message, this, getDefaultOnFailCall());
+        Call onNotFoundReceivedCall = unused -> {
+            ChatMessage messageInverted = new ChatMessage();
+            messageInverted.setSenderId(message.getReceivedId());
+            messageInverted.setReceivedId(message.getSenderId());
 
-        ChatMessage messageInverted = new ChatMessage();
-        messageInverted.setSenderId(message.getReceivedId());
-        messageInverted.setReceivedId(message.getSenderId());
+            this.conversationCollection
+                    .getCollection(messageInverted, this, getDefaultOnFailCall());
+        };
+        this.conversationCollection.getCollection(message, this, onNotFoundReceivedCall);
 
-        this.conversationCollection
-                .getCollection(messageInverted, this, getDefaultOnFailCall());
     }
-
 
     //    Send the message
     private void sendMessageAction() {
@@ -267,7 +265,6 @@ public class ChatSimpleActivity extends AppCompatActivity
 
     private void setNewRecentConversation(ChatMessage messageSent) {
         this.actualConversation = new Conversation();
-        this.actualConversation.setSenderImage(this.receivedUser.getImage());
         this.actualConversation.setLastMessageId(messageSent.getId());
         this.actualConversation.setLastDateSent(new Date());
         this.conversationCollection.addCollection(this.actualConversation, this);
@@ -275,7 +272,7 @@ public class ChatSimpleActivity extends AppCompatActivity
 
     // For recent listener : create new recent conversation
     private void setLastRecentConversation(ChatMessage messageSent) {
-        this.actualConversation.setLastMessageId(messageSent.getMessage());
+        this.actualConversation.setLastMessageId(messageSent.getId());
         this.actualConversation.setLastDateSent(new Date());
         this.conversationCollection.updateCollection(this.actualConversation);
     }
@@ -289,7 +286,6 @@ public class ChatSimpleActivity extends AppCompatActivity
             String message = (String) data.get(MESSAGE);
             MessagesAppGenerator.showToast(getApplicationContext(), message,
                     FAIL_GET_RESPONSE);
-
         };
     }
 }
