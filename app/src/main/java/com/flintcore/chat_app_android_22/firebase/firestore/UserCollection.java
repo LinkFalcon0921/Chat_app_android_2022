@@ -4,6 +4,7 @@ import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messa
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.NO_USERS_AVAILABLE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.SharedReferences.KEY_FMC_TOKEN;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.COLLECTION;
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_AVAILABLE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USERS_LIST;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_OBJ;
 
@@ -13,6 +14,7 @@ import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -70,7 +72,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
                     List<User> users = documents
                             .stream()
                             .map(this::filterAllUserDocumentData)
-                                    .collect(Collectors.toList());
+                            .collect(Collectors.toList());
 
                     values.put(KEY_USERS_LIST, Optional.of(users));
                     onSuccess.start(values);
@@ -144,22 +146,22 @@ public class UserCollection extends FirebaseConnection<String, User> {
                         return;
                     }
 
-                        HashMap<String, Object> hashMap = new HashMap<>();
+                    HashMap<String, Object> hashMap = new HashMap<>();
 
-                        List<DocumentSnapshot> snapshotList = documentSnapshots.getDocuments();
-                        if (snapshotList.isEmpty()) {
-                            callOnFail(onFail, throwsDefaultException(NO_USER));
-                            return;
-                        }
+                    List<DocumentSnapshot> snapshotList = documentSnapshots.getDocuments();
+                    if (snapshotList.isEmpty()) {
+                        callOnFail(onFail, throwsDefaultException(NO_USER));
+                        return;
+                    }
 
-                        DocumentSnapshot actDoc = snapshotList.get(0);
-                        Map<String, Object> results = hashMap;
+                    DocumentSnapshot actDoc = snapshotList.get(0);
+                    Map<String, Object> results = hashMap;
 
-                        User user = actDoc.toObject(User.class);
-                        user.setId(actDoc.getId());
-                        results.put(KEY_USER_OBJ, user);
+                    User user = actDoc.toObject(User.class);
+                    user.setId(actDoc.getId());
+                    results.put(KEY_USER_OBJ, user);
 
-                        onSuccess.start(results);
+                    onSuccess.start(results);
 
 
                 }).addOnFailureListener(fail -> callOnFail(onFail, fail));
@@ -170,7 +172,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
         this.collection.document(userId)
                 .get()
                 .addOnCompleteListener(result -> {
-                    if (!result.isSuccessful() || !result.getResult().exists()){
+                    if (!result.isSuccessful() || !result.getResult().exists()) {
                         callOnFail(onFail, throwsDefaultException("No chats recently"));
                     }
 
@@ -241,6 +243,32 @@ public class UserCollection extends FirebaseConnection<String, User> {
                     values.put(FirebaseConstants.Results.MESSAGE, DEFAULT_MESSAGE_UNABLE_TOKEN_UPDATE);
                     onFail.start(values);
                 });
+    }
+
+    public void updateAvailable(String userId, int newValue) {
+        this.collection
+                .document(userId)
+                .update(KEY_AVAILABLE, newValue);
+    }
+
+    public void applyUserAvailability(@NonNull Map<Object, Object> whereArgs, EventListener<QuerySnapshot> l){
+        if (whereArgs.isEmpty()){
+            return;
+        }
+
+        Query referenceQuery = null;
+
+        for (Map.Entry<Object, Object> entry : whereArgs.entrySet()) {
+            if (Objects.isNull(referenceQuery)){
+                this.collection
+                        .whereEqualTo(entry.getKey().toString(), entry.getValue().toString());
+                continue;
+            }
+            referenceQuery = referenceQuery
+                    .whereEqualTo(entry.getKey().toString(), entry.getValue().toString());
+        }
+
+        referenceQuery.addSnapshotListener(l);
     }
 
     private void callOnFail(Call onFail, Exception e) {

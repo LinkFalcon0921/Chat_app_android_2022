@@ -3,7 +3,7 @@ package com.flintcore.chat_app_android_22.firebase.firestore;
 import androidx.annotation.NonNull;
 
 import com.flintcore.chat_app_android_22.firebase.models.ChatMessage;
-import com.flintcore.chat_app_android_22.firebase.models.embbebed.Conversation;
+import com.flintcore.chat_app_android_22.firebase.models.Conversation;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnSuccessListener;

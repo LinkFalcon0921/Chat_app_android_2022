@@ -31,6 +31,7 @@ public interface FirebaseConstants {
         String KEY_EMAIL = "email";
         String KEY_PASS = "pass";
         String KEY_CONFIRM_PASS = "pass";
+        String KEY_AVAILABLE = "available";
 
         //        Defaults
         String KEY_USERS_LIST = "userList";
@@ -52,17 +53,27 @@ public interface FirebaseConstants {
         String KEY_CHAT_OBJ = "conversationObj";
 
     }
-    interface Conversations{
+
+    interface Conversations {
         String KEY_COLLECTION = "conversations";
         String KEY_ID = "conversationId";
         String KEY_LAST_MESSAGE_ID = "lastMessageId";
         String KEY_SENDER = "senderId";
-        //        String KEY_SENDER_ID = "conversationSenderId";
-//        String KEY_RECEIVER_ID = "conversationReceiverId";
+        /**
+         * This is the object to check if message was saw by user.
+         */
+        String KEY_CONVERSATION_STATUS = "receiver";
         String KEY_LAST_DATE = "lastDateSent";
 
-//      Defaults
+        //      Defaults
         String KEY_CHAT_CONVERSATIONS = "conversationList";
         String KEY_CONVERSATION_OBJ = "conversationObj";
+    }
+
+    interface ConversationReceiver{
+        String KEY_COLLECTION = "conversationReceiver";
+        String KEY_ID = "conversationReceiverId";
+        String KEY_RECEIVER_ID = "receiver";
+        String KEY_VIEWED = "wasViewed";
     }
 }

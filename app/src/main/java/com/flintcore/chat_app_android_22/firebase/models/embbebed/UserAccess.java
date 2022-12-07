@@ -1,5 +1,7 @@
 package com.flintcore.chat_app_android_22.firebase.models.embbebed;
 
+import com.google.firebase.firestore.DocumentId;
+
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -7,12 +9,26 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor
 /**Always create this class to login*/
 public class UserAccess implements Serializable {
 
+    @DocumentId
+    private String id;
+
     private String email;
     private String pass;
+
+    public UserAccess() {
+    }
+
+    @DocumentId
+    public String getId() {
+        return id;
+    }
+    @DocumentId
+    public void setId(String id) {
+        this.id = id;
+    }
 
     public String getEmail() {
         return email;

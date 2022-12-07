@@ -1,27 +1,28 @@
 package com.flintcore.chat_app_android_22.firebase.models;
 
-import android.os.Parcel;
-import android.os.Parcelable;
-
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
-import com.google.firebase.firestore.Exclude;
+import com.google.firebase.firestore.DocumentId;
 
 import java.io.Serializable;
+import java.util.Comparator;
 import java.util.Objects;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor
-public class User implements Serializable {
+public class User implements Serializable, Comparable<User>{
 
-    @Exclude
     private String id;
     private String token;
     private String alias;
     private String image;
+    private int available;
     private UserAccess userAccess;
+
+    public User() {
+        this.userAccess = new UserAccess();
+    }
 
     public String getToken() {
         return token;
@@ -31,11 +32,11 @@ public class User implements Serializable {
         this.token = token;
     }
 
-    @Exclude
+    @DocumentId
     public String getId() {
         return id;
     }
-
+    @DocumentId
     public void setId(String id) {
         this.id = id;
     }
@@ -64,6 +65,14 @@ public class User implements Serializable {
         this.userAccess = userAccess;
     }
 
+    public int getAvailable() {
+        return available;
+    }
+
+    public void setAvailable(int available) {
+        this.available = available;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -77,4 +86,12 @@ public class User implements Serializable {
         return Objects.hash(id, alias, image, userAccess);
     }
 
+
+    @Override
+    public int compareTo(User user) {
+        return Comparator.comparing(User::getId)
+                .thenComparing(User::hashCode)
+                .thenComparing(User::getToken)
+                .compare(this, user);
+    }
 }

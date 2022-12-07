@@ -11,6 +11,7 @@ import com.flintcore.chat_app_android_22.databinding.ItemContentSentMessageBindi
 import com.flintcore.chat_app_android_22.firebase.models.ChatMessage;
 import com.flintcore.chat_app_android_22.utilities.dates.DateUtils;
 
+import java.util.Collection;
 import java.util.List;
 
 public class ChatMessagingAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
@@ -19,12 +20,11 @@ public class ChatMessagingAdapter extends RecyclerView.Adapter<RecyclerView.View
         int SENT = 0, RECEIVED = 1;
     }
 
-    // TODO add bitmap when add to View received.
-    private final List<ChatMessage> messages;
+    private final Collection<ChatMessage> messages;
     private final String senderId;
     private final DateUtils dateUtils;
 
-    public ChatMessagingAdapter(@NonNull String senderId, List<ChatMessage> messages) {
+    public ChatMessagingAdapter(@NonNull String senderId, Collection<ChatMessage> messages) {
         this.senderId = senderId;
         this.messages = messages;
         this.dateUtils = DateUtils.getDateUtils("MMMM dd, yyyy hh:mm a");
@@ -51,14 +51,22 @@ public class ChatMessagingAdapter extends RecyclerView.Adapter<RecyclerView.View
 
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        ChatMessage message = getChatMessage(position);
         switch (getItemViewType(position)) {
             case ViewType.SENT:
-                ((SendMessageHolder) holder).setData(this.dateUtils, this.messages.get(position));
+                ((SendMessageHolder) holder).setData(this.dateUtils,
+                        message);
                 break;
             default:
             case ViewType.RECEIVED:
-                ((ReceivedMessageHolder) holder).setData(this.dateUtils, this.messages.get(position));
+                ((ReceivedMessageHolder) holder).setData(this.dateUtils,
+                        message);
         }
+    }
+
+    private ChatMessage getChatMessage(int position) {
+        ChatMessage message = this.messages.toArray(new ChatMessage[0])[position];
+        return message;
     }
 
     @Override
@@ -71,8 +79,8 @@ public class ChatMessagingAdapter extends RecyclerView.Adapter<RecyclerView.View
 
     @Override
     public int getItemViewType(int position) {
-
-        if (this.messages.get(position).getSenderId().equals(this.senderId)) {
+        String senderId = this.getChatMessage(position).getSenderId();
+        if (senderId.equals(this.senderId)) {
             return ViewType.SENT;
         }
         return ViewType.RECEIVED;

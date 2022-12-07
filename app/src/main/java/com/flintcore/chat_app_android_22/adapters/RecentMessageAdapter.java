@@ -10,7 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.flintcore.chat_app_android_22.databinding.UserRecentItemContainerBinding;
-import com.flintcore.chat_app_android_22.firebase.models.embbebed.Conversation;
+import com.flintcore.chat_app_android_22.firebase.models.Conversation;
 import com.flintcore.chat_app_android_22.listeners.OnRecyclerItemListener;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 

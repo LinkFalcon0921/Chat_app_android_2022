@@ -24,8 +24,9 @@ import com.flintcore.chat_app_android_22.firebase.firestore.ChatMessageCollectio
 import com.flintcore.chat_app_android_22.firebase.firestore.ConversationCollection;
 import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
 import com.flintcore.chat_app_android_22.firebase.models.ChatMessage;
+import com.flintcore.chat_app_android_22.firebase.models.Conversation;
 import com.flintcore.chat_app_android_22.firebase.models.User;
-import com.flintcore.chat_app_android_22.firebase.models.embbebed.Conversation;
+import com.flintcore.chat_app_android_22.firebase.models.UserConstants;
 import com.flintcore.chat_app_android_22.listeners.OnRecyclerItemListener;
 import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
@@ -40,7 +41,9 @@ import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -104,7 +107,6 @@ public class MainActivity extends AppCompatActivity
         String userId = this.loggedPreferencesManager.getString(KEY_USER_ID);
 
         //Charge count of updates
-        this.updateCountRecentData(documentChanges.size());
 
         for (DocumentChange documentChange : documentChanges) {
             QueryDocumentSnapshot doc = documentChange.getDocument();
@@ -115,8 +117,9 @@ public class MainActivity extends AppCompatActivity
                     newConversation.setId(doc.getId());
 
                     setAdditionalConversationData(newConversation, userId);
-
                     break;
+
+
                 case MODIFIED:
                     Conversation conversation = doc.toObject(Conversation.class);
 
@@ -127,13 +130,15 @@ public class MainActivity extends AppCompatActivity
                                 conversation.getLastMessageId(),
                                 data -> {
                                     ChatMessage message = (ChatMessage) data.get(KEY_CHAT_OBJ);
-                                    if(Objects.isNull(message)){
+                                    if (Objects.isNull(message)) {
                                         return;
                                     }
 
                                     cv.setMessage(message.getMessage());
                                     cv.setLastDateSent(conversation.getLastDateSent());
-                                    updateCountRecentData(-1);
+//                                    Apply changes
+                                    cv.setReceiver(conversation.getReceiver());
+                                    updateInsertedConversation(cv);
                                 }, onFail);
                     };
 
@@ -145,18 +150,30 @@ public class MainActivity extends AppCompatActivity
     }
 
     //    Method to update the recycler when map all data.
-    private void updateCountRecentData(int newCount) {
-        this.countDataUpdated += newCount;
-        if (this.countDataUpdated == 0) {
-            getOnFinishLoadConversations().run();
-        }
+    private void updateInsertedConversation(Conversation conversation) {
+        ArrayList<Conversation> arrayList = new ArrayList<>(this.conversations);
+
+        int searchIndex = Collections.binarySearch(arrayList, conversation);
+        int recyclerChildCount = this.binding.recentConversationsRecycler.getChildCount();
+
+        this.recentMessageAdapter.notifyItemRangeChanged(searchIndex, recyclerChildCount);
     }
+
+    private void addInsertedConversation(Conversation conversation) {
+        ArrayList<Conversation> arrayList = new ArrayList<>(this.conversations);
+
+        int searchIndex = Collections.binarySearch(arrayList, conversation);
+        int recyclerChildCount = this.binding.recentConversationsRecycler.getChildCount();
+
+        this.recentMessageAdapter.notifyItemRangeInserted(searchIndex, recyclerChildCount);
+    }
+
 
     @Override
     public void onClick(Conversation conversation) {
         Intent chatRecentIntent = new Intent(getApplicationContext(), ChatSimpleActivity.class);
         HashMap<String, Object> whereArgs = getNewStringHashMap();
-        whereArgs.put(FieldPath.documentId().toString(), conversation.getSenderId());
+        whereArgs.put(FieldPath.documentId().toString(), conversation.getLastSenderId());
 
         this.userCollection.getCollection(whereArgs,
                 data -> {
@@ -164,6 +181,11 @@ public class MainActivity extends AppCompatActivity
                     if (Objects.isNull(userReceived)) {
                         return;
                     }
+
+//                    Set flag to already recent message saw.
+                    conversation.getReceiver().setWasViewed(true);
+                    this.conversationCollection
+                            .updateCollection(conversation);
                     chatRecentIntent.putExtra(KEY_USER_OBJ, userReceived);
                     startActivity(chatRecentIntent);
                 },
@@ -207,16 +229,17 @@ public class MainActivity extends AppCompatActivity
                                     return;
                                 }
 
-                                conversation.setSenderId(receiver);
+                                conversation.setLastSenderId(receiver);
                                 conversation.setSenderName(user.getAlias());
                                 conversation.setSenderImage(user.getImage());
 
                                 this.conversations.add(conversation);
-                                updateCountRecentData(-1);
+                                addInsertedConversation(conversation);
                             }, fail -> endOnNoFoundRecentMessages(NO_CHATS_RECENT));
 
                 }, getOnFailFirebaseConnection());
     }
+
 
     private void setFireStoreConnection() {
         this.userCollection = UserCollection.getInstance(getOnFailFirebaseConnection());
@@ -246,7 +269,7 @@ public class MainActivity extends AppCompatActivity
             }
 
 //            Receiver id
-            String userId = this.loggedPreferencesManager.getString(KEY_USER_ID);
+            String userId = getLoggedUserId();
 
             taskResult.getDocuments()
                     .forEach(documentSnapshot -> {
@@ -282,6 +305,10 @@ public class MainActivity extends AppCompatActivity
         };
 
         this.conversationCollection.applyCollectionListener(getChatsRelated);
+    }
+
+    private String getLoggedUserId() {
+        return this.loggedPreferencesManager.getString(KEY_USER_ID);
     }
 
     @Deprecated
@@ -327,8 +354,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void signOutUser() {
-        String userId = this.loggedPreferencesManager.getString(KEY_USER_ID);
-
+        String userId = getLoggedUserId();
 
         Call onSuccess = unused -> {
             this.loggedPreferencesManager.clear();
@@ -336,7 +362,10 @@ public class MainActivity extends AppCompatActivity
             finish();
         };
 
-        Call onFail = getOnFailFirebaseConnection();
+        Call onFail = data -> {
+            getOnFailFirebaseConnection().start(data);
+            onSuccess.start(null);
+        };
 
         this.userCollection.clearToken(userId, onSuccess, onFail);
     }
@@ -352,7 +381,7 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
-        String userId = this.loggedPreferencesManager.getString(KEY_USER_ID);
+        String userId = getLoggedUserId();
 
         Call onSuccess = data -> {
             MessagesAppGenerator.showToast(getApplicationContext(), "Sign in successfully!", FAIL_GET_RESPONSE);
@@ -385,5 +414,26 @@ public class MainActivity extends AppCompatActivity
         MessagesAppGenerator.showToast(getApplicationContext(), message, FAIL_GET_RESPONSE);
     }
 
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        this.userCollection.updateAvailable(getLoggedUserId(), UserConstants.AVAILABLE);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        this.userCollection.updateAvailable(getLoggedUserId(), UserConstants.NOT_AVAILABLE);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        this.userCollection.updateAvailable(getLoggedUserId(), UserConstants.NOT_AVAILABLE);
+    }
 
 }

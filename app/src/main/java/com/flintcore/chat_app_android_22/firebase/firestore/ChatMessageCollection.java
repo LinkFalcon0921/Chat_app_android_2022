@@ -141,24 +141,27 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
 
     @Override
     public void deleteCollection(String s, Call onSuccess, Call onFail) {
+        throw throwDefaultException("No implemented");
 
     }
 
     @Override
     public void deleteCollection(String[] keys, Object[] values, Call onSuccess, Call onFail) {
+        throw throwDefaultException("No implemented");
 
     }
 
     @Override
     @Deprecated
     public void updateToken(String s, Call onSuccess, Call onFail) {
+        throw throwDefaultException("No implemented");
 
     }
 
     @Override
     @Deprecated
     public void clearToken(String s, Call onSuccess, Call onFail) {
-
+        throw throwDefaultException("No implemented");
     }
 
     //    Add chat listener to the app

@@ -29,6 +29,7 @@ import com.flintcore.chat_app_android_22.databinding.ActivitySignUpBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
 import com.flintcore.chat_app_android_22.firebase.models.User;
+import com.flintcore.chat_app_android_22.firebase.models.UserConstants;
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
@@ -203,6 +204,9 @@ public class SignUpActivity extends AppCompatActivity {
 
         this.preferencesManager.put(KEY_USER_ID,
                 user.getId());
+
+        this.userCollection
+        .updateAvailable(user.getId(), UserConstants.AVAILABLE);
 
         this.preferencesManager.put(KEY_ALIAS,
                 user.getAlias());

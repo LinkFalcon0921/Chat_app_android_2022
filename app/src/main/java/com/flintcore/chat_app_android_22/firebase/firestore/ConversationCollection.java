@@ -1,7 +1,5 @@
 package com.flintcore.chat_app_android_22.firebase.firestore;
 
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.ChatMessages.KEY_RECEIVED;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.ChatMessages.KEY_SENDER;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations.KEY_COLLECTION;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations.KEY_CONVERSATION_OBJ;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations.KEY_LAST_DATE;
@@ -11,7 +9,7 @@ import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Resul
 import androidx.annotation.NonNull;
 
 import com.flintcore.chat_app_android_22.firebase.models.ChatMessage;
-import com.flintcore.chat_app_android_22.firebase.models.embbebed.Conversation;
+import com.flintcore.chat_app_android_22.firebase.models.Conversation;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -20,7 +18,6 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
 
