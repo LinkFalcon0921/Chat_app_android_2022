@@ -1,7 +1,6 @@
 package com.flintcore.chat_app_android_22.activities;
 
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.ChatMessages.KEY_CHAT_OBJ;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations.KEY_CONVERSATION_OBJ;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.FAIL_GET_RESPONSE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.NO_CHATS_RECENT;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Results.MESSAGE;
@@ -21,7 +20,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.flintcore.chat_app_android_22.adapters.RecentMessageAdapter;
 import com.flintcore.chat_app_android_22.databinding.ActivityMainBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
-import com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations;
 import com.flintcore.chat_app_android_22.firebase.firestore.ChatMessageCollection;
 import com.flintcore.chat_app_android_22.firebase.firestore.ConversationCollection;
 import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
@@ -32,6 +30,7 @@ import com.flintcore.chat_app_android_22.listeners.OnRecyclerItemListener;
 import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
+import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.firebase.firestore.DocumentChange;
@@ -49,12 +48,14 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeSet;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 
 public class MainActivity extends AppCompatActivity
         implements EventListener<QuerySnapshot>, OnRecyclerItemListener<Conversation> {
 
     private boolean flagFirstLogin;
+    //    Count for check when the data is completed.
+    private int countDataUpdated;
+
     private ActivityMainBinding binding;
     private PreferencesManager loggedPreferencesManager;
     private UserCollection userCollection;
@@ -70,7 +71,8 @@ public class MainActivity extends AppCompatActivity
         this.binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(this.binding.getRoot());
 
-        this.loggedPreferencesManager = new PreferencesManager(getApplicationContext(), FirebaseConstants.SharedReferences.KEY_CHAT_USER_LOGGED_PREFERENCES);
+        this.loggedPreferencesManager = new PreferencesManager(getApplicationContext(),
+                FirebaseConstants.SharedReferences.KEY_CHAT_USER_LOGGED_PREFERENCES);
 
         setFireStoreConnection();
 //        TODO logic to offline
@@ -93,7 +95,7 @@ public class MainActivity extends AppCompatActivity
 
         List<DocumentChange> documentChanges = value.getDocumentChanges();
 
-        if (documentChanges.isEmpty()) {
+        if (Objects.isNull(documentChanges) || documentChanges.isEmpty()) {
             getOnFinishLoadConversations().run();
             return;
         }
@@ -101,47 +103,60 @@ public class MainActivity extends AppCompatActivity
 
         String userId = this.loggedPreferencesManager.getString(KEY_USER_ID);
 
-        Stream<Conversation> conversationAddStream = documentChanges.stream()
-                .filter(doc -> doc.getType().equals(DocumentChange.Type.ADDED))
-                .map(DocumentChange::getDocument)
-                .map(doc -> {
+        //Charge count of updates
+        this.updateCountRecentData(documentChanges.size());
+
+        for (DocumentChange documentChange : documentChanges) {
+            QueryDocumentSnapshot doc = documentChange.getDocument();
+
+            switch (documentChange.getType()) {
+                case ADDED:
                     Conversation newConversation = doc.toObject(Conversation.class);
                     newConversation.setId(doc.getId());
 
                     setAdditionalConversationData(newConversation, userId);
 
-                    return newConversation;
-                });
-
-        Stream<QueryDocumentSnapshot> queryDocumentUpdateSnapshotStream = documentChanges.stream()
-                .filter(doc -> doc.getType().equals(DocumentChange.Type.MODIFIED))
-                .map(DocumentChange::getDocument);
-
-        queryDocumentUpdateSnapshotStream
-                .forEach(doc -> {
+                    break;
+                case MODIFIED:
                     Conversation conversation = doc.toObject(Conversation.class);
 
-                    getOptionalConversation(conversation.getId(),
-                            cv -> {
-                                cv.setMessage(conversation.getMessage());
-                                cv.setLastDateSent(conversation.getLastDateSent());
-                            }, () -> {
-                            });
+                    CallResult<Conversation> onUpdateRecentConversation = cv -> {
+                        Call onFail = unused -> {
+                        };
+                        this.chatMessageCollection.getCollection(
+                                conversation.getLastMessageId(),
+                                data -> {
+                                    ChatMessage message = (ChatMessage) data.get(KEY_CHAT_OBJ);
+                                    if(Objects.isNull(message)){
+                                        return;
+                                    }
 
-                });
+                                    cv.setMessage(message.getMessage());
+                                    cv.setLastDateSent(conversation.getLastDateSent());
+                                    updateCountRecentData(-1);
+                                }, onFail);
+                    };
 
-        conversationAddStream
-                .forEach(this.conversations::add);
+                    getOptionalConversation(doc.getId(), onUpdateRecentConversation);
+            }
 
-        queryDocumentUpdateSnapshotStream.close();
+        }
 
+    }
+
+    //    Method to update the recycler when map all data.
+    private void updateCountRecentData(int newCount) {
+        this.countDataUpdated += newCount;
+        if (this.countDataUpdated == 0) {
+            getOnFinishLoadConversations().run();
+        }
     }
 
     @Override
     public void onClick(Conversation conversation) {
         Intent chatRecentIntent = new Intent(getApplicationContext(), ChatSimpleActivity.class);
         HashMap<String, Object> whereArgs = getNewStringHashMap();
-        whereArgs.put(Conversations.KEY_SENDER, conversation.getSenderName());
+        whereArgs.put(FieldPath.documentId().toString(), conversation.getSenderId());
 
         this.userCollection.getCollection(whereArgs,
                 data -> {
@@ -149,36 +164,28 @@ public class MainActivity extends AppCompatActivity
                     if (Objects.isNull(userReceived)) {
                         return;
                     }
-                    chatRecentIntent.putExtra(KEY_CONVERSATION_OBJ, userReceived);
+                    chatRecentIntent.putExtra(KEY_USER_OBJ, userReceived);
                     startActivity(chatRecentIntent);
                 },
                 fail -> getOnFailFirebaseConnection());
 
     }
 
-    private HashMap<String, Object> getNewStringHashMap() {
-        return new HashMap<>();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-
-        listenRecentMessages();
-    }
-
     //    Update action when all actions done.
+
     private Runnable getOnFinishLoadConversations() {
         return () -> {
             if (!this.conversations.isEmpty()) {
                 this.flagFirstLogin = false;
+                this.recentMessageAdapter.notifyDataSetChanged();
+                this.binding.recentConversationsRecycler.smoothScrollToPosition(0);
             }
-            this.recentMessageAdapter.notifyDataSetChanged();
-            this.binding.recentConversationsRecycler.smoothScrollToPosition(0);
+
             this.binding.recentConversationsRecycler.setVisibility(View.VISIBLE);
             this.binding.progressBar.setVisibility(View.GONE);
         };
     }
+    //    Add recent messages to the list view
 
     private void setAdditionalConversationData(Conversation conversation, String userId) {
         this.chatMessageCollection.getCollection(conversation.getLastMessageId(),
@@ -190,26 +197,23 @@ public class MainActivity extends AppCompatActivity
 
                     conversation.setMessage(message.getMessage());
 
-                    // TODO
-                    String sender = userId.equals(message.getSenderId()) ? message.getReceivedId() : message.getSenderId();
-                    String receiver = !userId.equals(message.getSenderId()) ? message.getReceivedId() : message.getSenderId();
+                    String receiver = userId.equals(message.getSenderId()) ?
+                            message.getReceivedId() : message.getSenderId();
 
-                    this.userCollection.getCollection(sender,
+                    this.userCollection.getCollection(receiver,
                             dataUser -> {
                                 User user = (User) dataUser.get(FirebaseConstants.Users.KEY_USER_OBJ);
                                 if (Objects.isNull(user)) {
                                     return;
                                 }
 
+                                conversation.setSenderId(receiver);
                                 conversation.setSenderName(user.getAlias());
                                 conversation.setSenderImage(user.getImage());
-                                conversation.setSenderId(receiver);
 
-//                                Refresh the view
-                                getOnFinishLoadConversations().run();
-                            }, fail -> {
-                                endOnNoFoundRecentMessages(NO_CHATS_RECENT);
-                            });
+                                this.conversations.add(conversation);
+                                updateCountRecentData(-1);
+                            }, fail -> endOnNoFoundRecentMessages(NO_CHATS_RECENT));
 
                 }, getOnFailFirebaseConnection());
     }
@@ -234,8 +238,14 @@ public class MainActivity extends AppCompatActivity
                 return;
             }
 
-            QuerySnapshot taskResult = task.getResult();
+            QuerySnapshot taskResult = null;
+            if (task.isComplete() && task.isSuccessful()
+                    && Objects.isNull(taskResult = task.getResult())) {
+                getOnFinishLoadConversations().run();
+                return;
+            }
 
+//            Receiver id
             String userId = this.loggedPreferencesManager.getString(KEY_USER_ID);
 
             taskResult.getDocuments()
@@ -243,6 +253,7 @@ public class MainActivity extends AppCompatActivity
 
                         Conversation c = documentSnapshot.toObject(Conversation.class);
                         c.setId(documentSnapshot.getId());
+
                         if (Objects.isNull(c)) {
                             return;
                         }
@@ -255,12 +266,13 @@ public class MainActivity extends AppCompatActivity
                                 return;
                             }
 
-                            if(!(msg.getSenderId().equals(userId) || msg.getReceivedId().equals(userId))){
+                            if (!(msg.getSenderId().equals(userId) || msg.getReceivedId().equals(userId))) {
                                 return;
                             }
 
                             HashMap<Object, Object> hashMap = getNewHashMap();
                             hashMap.put(FieldPath.documentId(), c.getId());
+
                             this.conversationCollection.applyCollectionListener(hashMap, this);
                         }, fail -> {
                             endOnNoFoundRecentMessages(NO_CHATS_RECENT);
@@ -272,6 +284,7 @@ public class MainActivity extends AppCompatActivity
         this.conversationCollection.applyCollectionListener(getChatsRelated);
     }
 
+    @Deprecated
     private void getOptionalConversation(String id, Consumer<Conversation> consumer, Runnable onFail) {
         Optional<Conversation> conversationOptional = this.conversations
                 .stream()
@@ -286,21 +299,19 @@ public class MainActivity extends AppCompatActivity
         conversationOptional.ifPresent(consumer);
     }
 
-    @Deprecated
-    private void getOptionalConversation(ChatMessage msg, Consumer<Conversation> consumer, Runnable onFail) {
+    private void getOptionalConversation(String conversationId, CallResult<Conversation> callResult) {
         Optional<Conversation> conversationOptional = this.conversations.stream()
-                .filter(cv -> cv.getLastMessageId().equals(msg.getId())).findFirst();
+                .filter(cv -> cv.getId().equals(conversationId)).findFirst();
 
-        if (!conversationOptional.isPresent()) {
-            onFail.run();
-            return;
-        }
-
-        conversationOptional.ifPresent(consumer);
+        conversationOptional.ifPresent(callResult::onCall);
     }
 
     @NonNull
     private HashMap<Object, Object> getNewHashMap() {
+        return new HashMap<>();
+    }
+
+    private HashMap<String, Object> getNewStringHashMap() {
         return new HashMap<>();
     }
 

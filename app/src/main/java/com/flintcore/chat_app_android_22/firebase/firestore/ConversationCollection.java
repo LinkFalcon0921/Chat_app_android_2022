@@ -20,6 +20,7 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
 
@@ -96,6 +97,7 @@ public class ConversationCollection implements ConversationCollectionActions<Str
             referenceQuery = referenceQuery.whereEqualTo(where.getKey().toString(), where.getValue());
         }
 
+        /*ListenerRegistration listenerRegistration = */
         referenceQuery.addSnapshotListener(l);
     }
 

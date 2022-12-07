@@ -11,6 +11,7 @@ public interface FirebaseConstants {
         String FAIL_GET_RESPONSE = "The database is not available";
         String NO_USERS_AVAILABLE = "No users available";
         String NO_CHATS_RECENT = "No chat recently";
+        String NO_USER = "No user present";
     }
 
     interface Results {

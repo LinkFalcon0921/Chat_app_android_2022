@@ -1,5 +1,6 @@
 package com.flintcore.chat_app_android_22.firebase.firestore;
 
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.NO_USER;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.NO_USERS_AVAILABLE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.SharedReferences.KEY_FMC_TOKEN;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.COLLECTION;
@@ -138,12 +139,16 @@ public class UserCollection extends FirebaseConnection<String, User> {
         referenceQuery.get()
                 .addOnCompleteListener(result -> {
                     QuerySnapshot documentSnapshots = result.getResult();
-                    if (result.isSuccessful() && documentSnapshots != null) {
+                    if (!result.isSuccessful() && Objects.isNull(documentSnapshots)) {
+                        callOnFail(onFail, throwsDefaultException(NO_USER));
+                        return;
+                    }
+
                         HashMap<String, Object> hashMap = new HashMap<>();
 
                         List<DocumentSnapshot> snapshotList = documentSnapshots.getDocuments();
                         if (snapshotList.isEmpty()) {
-                            callOnFail(onFail, throwsDefaultException("The user does not exists"));
+                            callOnFail(onFail, throwsDefaultException(NO_USER));
                             return;
                         }
 
@@ -155,7 +160,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
                         results.put(KEY_USER_OBJ, user);
 
                         onSuccess.start(results);
-                    }
+
 
                 }).addOnFailureListener(fail -> callOnFail(onFail, fail));
     }
