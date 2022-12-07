@@ -65,9 +65,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:layout_marginHorizontal="@dimen/_27sdp"
+            android:gravity="center"
             android:visibility="gone"
-            android:textColor="@color/error_text_color"
+            android:layout_marginHorizontal="@dimen/_27sdp"
+            android:textColor="@color/primary_text_color"
             android:textSize="@dimen/_13sdp"
             />
 

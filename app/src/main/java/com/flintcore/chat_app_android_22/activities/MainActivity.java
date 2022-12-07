@@ -35,6 +35,7 @@ import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.firebase.firestore.DocumentChange;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FirebaseFirestoreException;
@@ -96,6 +97,7 @@ public class MainActivity extends AppCompatActivity
             MessagesAppGenerator.showToast(getApplicationContext(), "Check internet connection", FAIL_GET_RESPONSE);
         }
 
+//      Conversation load
         List<DocumentChange> documentChanges = value.getDocumentChanges();
 
         if (Objects.isNull(documentChanges) || documentChanges.isEmpty()) {
@@ -203,9 +205,13 @@ public class MainActivity extends AppCompatActivity
                 this.binding.recentConversationsRecycler.smoothScrollToPosition(0);
             }
 
-            this.binding.recentConversationsRecycler.setVisibility(View.VISIBLE);
-            this.binding.progressBar.setVisibility(View.GONE);
+            showRecentListView();
         };
+    }
+
+    private void showRecentListView() {
+        this.binding.recentConversationsRecycler.setVisibility(View.VISIBLE);
+        this.binding.progressBar.setVisibility(View.GONE);
     }
     //    Add recent messages to the list view
 
@@ -251,7 +257,7 @@ public class MainActivity extends AppCompatActivity
 
     private void loadRecentMessages() {
         this.conversations = new TreeSet<>(Comparator.comparing(Conversation::getLastDateSent));
-        this.recentMessageAdapter = new RecentMessageAdapter(this.conversations, this);
+        this.recentMessageAdapter = new RecentMessageAdapter(this.conversations, this::onClick);
         this.binding.recentConversationsRecycler.setAdapter(this.recentMessageAdapter);
     }
 
@@ -270,39 +276,44 @@ public class MainActivity extends AppCompatActivity
 
 //            Receiver id
             String userId = getLoggedUserId();
+            List<DocumentSnapshot> documents = taskResult.getDocuments();
 
-            taskResult.getDocuments()
-                    .forEach(documentSnapshot -> {
+            if (documents.isEmpty()) {
+                showRecentListView();
+                return;
+            }
+            documents.forEach(documentSnapshot -> {
 
-                        Conversation c = documentSnapshot.toObject(Conversation.class);
-                        c.setId(documentSnapshot.getId());
+                Conversation c = documentSnapshot.toObject(Conversation.class);
+                c.setId(documentSnapshot.getId());
 
-                        if (Objects.isNull(c)) {
-                            return;
-                        }
-//                        Get the conversation
-                        this.chatMessageCollection.getCollection(c.getLastMessageId(), data -> {
-                            ChatMessage msg = (ChatMessage) data.get(KEY_CHAT_OBJ);
+                if (Objects.isNull(c)) {
+                    return;
+                }
+                //                        Get the conversation
+                this.chatMessageCollection.getCollection(c.getLastMessageId(), data -> {
+                    ChatMessage msg = (ChatMessage) data.get(KEY_CHAT_OBJ);
 
-                            if (Objects.isNull(msg)) {
-                                endOnNoFoundRecentMessages(NO_CHATS_RECENT);
-                                return;
-                            }
+                    if (Objects.isNull(msg)) {
+                        endOnNoFoundRecentMessages(NO_CHATS_RECENT);
+                        return;
+                    }
 
-                            if (!(msg.getSenderId().equals(userId) || msg.getReceivedId().equals(userId))) {
-                                return;
-                            }
+                    if (!(msg.getSenderId().equals(userId) || msg.getReceivedId().equals(userId))) {
+                        return;
+                    }
 
-                            HashMap<Object, Object> hashMap = getNewHashMap();
-                            hashMap.put(FieldPath.documentId(), c.getId());
+                    HashMap<Object, Object> hashMap = getNewHashMap();
+                    hashMap.put(FieldPath.documentId(), c.getId());
 
-                            this.conversationCollection.applyCollectionListener(hashMap, this);
-                        }, fail -> {
-                            endOnNoFoundRecentMessages(NO_CHATS_RECENT);
-                        });
-                    });
+                    this.conversationCollection.applyCollectionListener(hashMap, this::onEvent);
+                }, fail -> {
+                    endOnNoFoundRecentMessages(NO_CHATS_RECENT);
+                });
+            });
 
         };
+//      Listen all conversations
 
         this.conversationCollection.applyCollectionListener(getChatsRelated);
     }
