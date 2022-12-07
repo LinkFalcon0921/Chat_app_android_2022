@@ -10,6 +10,8 @@ public interface FirebaseConstants {
     interface Messages {
         String FAIL_GET_RESPONSE = "The database is not available";
         String NO_USERS_AVAILABLE = "No users available";
+        String NO_CHATS_RECENT = "No chat recently";
+        String NO_USER = "No user present";
     }
 
     interface Results {
@@ -54,7 +56,8 @@ public interface FirebaseConstants {
         String KEY_COLLECTION = "conversations";
         String KEY_ID = "conversationId";
         String KEY_LAST_MESSAGE_ID = "lastMessageId";
-//        String KEY_SENDER_ID = "conversationSenderId";
+        String KEY_SENDER = "senderId";
+        //        String KEY_SENDER_ID = "conversationSenderId";
 //        String KEY_RECEIVER_ID = "conversationReceiverId";
         String KEY_LAST_DATE = "lastDateSent";
 

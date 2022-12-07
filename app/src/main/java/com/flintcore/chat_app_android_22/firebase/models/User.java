@@ -36,7 +36,6 @@ public class User implements Serializable {
         return id;
     }
 
-    @Exclude
     public void setId(String id) {
         this.id = id;
     }

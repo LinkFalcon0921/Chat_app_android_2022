@@ -20,6 +20,7 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
 
@@ -69,35 +70,34 @@ public class ConversationCollection implements ConversationCollectionActions<Str
                 );
     }
 
+    /**Use message id for query*/
     public void getCollection(ChatMessage message,
                               OnCompleteListener<QuerySnapshot> onComplete, Call onFail) {
-
         this.collection
-                .whereEqualTo(KEY_SENDER, message.getSenderId())
-                .whereEqualTo(KEY_RECEIVED, message.getReceivedId())
+                .whereEqualTo(KEY_LAST_MESSAGE_ID, message.getId())
                 .get()
                 .addOnCompleteListener(onComplete)
                 .addOnFailureListener(fail -> callOnFail(onFail, fail));
-
     }
 
     @Override
-    public void applyCollectionListener(Map<String, Object> whereArgs, @NonNull EventListener<QuerySnapshot> l) {
+    public void applyCollectionListener(Map<Object, Object> whereArgs, @NonNull EventListener<QuerySnapshot> l) {
         if (Objects.isNull(whereArgs) || whereArgs.isEmpty()){
             return;
         }
 
         Query referenceQuery = null;
 
-        for (Map.Entry<String, Object> where : whereArgs.entrySet()) {
+        for (Map.Entry<Object, Object> where : whereArgs.entrySet()) {
             if (Objects.isNull(referenceQuery)) {
-                referenceQuery = this.collection.whereEqualTo(where.getKey(), where.getValue());
+                referenceQuery = this.collection.whereEqualTo(where.getKey().toString(), where.getValue());
                 continue;
             }
 
-            referenceQuery = referenceQuery.whereEqualTo(where.getKey(), where.getValue());
+            referenceQuery = referenceQuery.whereEqualTo(where.getKey().toString(), where.getValue());
         }
 
+        /*ListenerRegistration listenerRegistration = */
         referenceQuery.addSnapshotListener(l);
     }
 
