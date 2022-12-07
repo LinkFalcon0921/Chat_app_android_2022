@@ -56,15 +56,27 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="@id/backBtn" />
 
+        <!--        Online flag view -->
+        <View
+            android:id="@+id/available_flag"
+            android:layout_width="@dimen/_12sdp"
+            android:layout_height="@dimen/_12sdp"
+            android:background="@drawable/background_available_user_flag"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/user_chat"
+            app:layout_constraintLeft_toRightOf="@id/backBtn"
+            app:layout_constraintRight_toLeftOf="@id/user_chat"
+            app:layout_constraintTop_toTopOf="@id/backBtn" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-<!--  View with chat data -->
+    <!--  View with chat data -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/chat_content_view"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:padding="@dimen/_18sdp"
         android:background="@drawable/background_content_btn"
+        android:padding="@dimen/_18sdp"
         app:layout_constraintBottom_toTopOf="@id/message_layout"
         app:layout_constraintTop_toBottomOf="@id/info_layout">
 
@@ -77,12 +89,12 @@
             android:clipToPadding="false"
             android:orientation="vertical"
             android:overScrollMode="never"
-            app:stackFromEnd="true"
             android:visibility="gone"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_bias="0.0"
+            app:stackFromEnd="true"
             tools:layout_editor_absoluteX="23dp" />
 
         <ProgressBar
@@ -95,7 +107,7 @@
             app:layout_constraintTop_toTopOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-    
+
     <!--  View of the input message and send  -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/message_layout"
@@ -111,8 +123,8 @@
             android:layout_marginVertical="@dimen/_8sdp"
             android:layout_marginEnd="@dimen/_12sdp"
             android:background="@drawable/background_chat_input"
-            android:src="@drawable/ic_send"
             android:contentDescription="@string/send_msg"
+            android:src="@drawable/ic_send"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:tint="@color/gray_500" />

@@ -10,4 +10,5 @@
     <color name="primary_text_color">#212529</color>
     <color name="hint_text_color">#adb5bd</color>
     <color name="error_text_color">#f33800</color>
+    <color name="green_online">#20DA6D</color>
 </resources>
