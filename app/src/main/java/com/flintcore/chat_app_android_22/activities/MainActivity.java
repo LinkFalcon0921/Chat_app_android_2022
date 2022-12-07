@@ -1,10 +1,12 @@
 package com.flintcore.chat_app_android_22.activities;
 
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.ChatMessages.KEY_CHAT_OBJ;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations.KEY_LAST_MESSAGE_ID;
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations.KEY_CONVERSATION_OBJ;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.FAIL_GET_RESPONSE;
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.NO_CHATS_RECENT;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Results.MESSAGE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_ID;
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_OBJ;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -19,12 +21,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.flintcore.chat_app_android_22.adapters.RecentMessageAdapter;
 import com.flintcore.chat_app_android_22.databinding.ActivityMainBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
+import com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations;
 import com.flintcore.chat_app_android_22.firebase.firestore.ChatMessageCollection;
 import com.flintcore.chat_app_android_22.firebase.firestore.ConversationCollection;
 import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
 import com.flintcore.chat_app_android_22.firebase.models.ChatMessage;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.Conversation;
+import com.flintcore.chat_app_android_22.listeners.OnRecyclerItemListener;
 import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
@@ -32,7 +36,9 @@ import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.EventListener;
+import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.Collection;
@@ -43,8 +49,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeSet;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
-public class MainActivity extends AppCompatActivity implements EventListener<QuerySnapshot> {
+public class MainActivity extends AppCompatActivity
+        implements EventListener<QuerySnapshot>, OnRecyclerItemListener<Conversation> {
 
     private boolean flagFirstLogin;
     private ActivityMainBinding binding;
@@ -86,15 +94,15 @@ public class MainActivity extends AppCompatActivity implements EventListener<Que
         List<DocumentChange> documentChanges = value.getDocumentChanges();
 
         if (documentChanges.isEmpty()) {
+            getOnFinishLoadConversations().run();
             return;
         }
 //        todo set filter of user.
 
-        int actualConversationSize = this.conversations.size();
-
         String userId = this.loggedPreferencesManager.getString(KEY_USER_ID);
 
-        documentChanges.stream().filter(doc -> doc.getType().equals(DocumentChange.Type.ADDED))
+        Stream<Conversation> conversationAddStream = documentChanges.stream()
+                .filter(doc -> doc.getType().equals(DocumentChange.Type.ADDED))
                 .map(DocumentChange::getDocument)
                 .map(doc -> {
                     Conversation newConversation = doc.toObject(Conversation.class);
@@ -103,29 +111,69 @@ public class MainActivity extends AppCompatActivity implements EventListener<Que
                     setAdditionalConversationData(newConversation, userId);
 
                     return newConversation;
-                })
-                .forEach(this.conversations::add);
-
-
-        // todo to check
-
-        documentChanges.stream().filter(doc -> doc.getType().equals(DocumentChange.Type.MODIFIED))
-                .onClose(getOnFinishLoadConversations())
-                .map(DocumentChange::getDocument)
-                .forEach(doc -> {
-                    Conversation conversation = doc.toObject(Conversation.class);
-                    setAdditionalConversationData(conversation, userId);
                 });
 
+        Stream<QueryDocumentSnapshot> queryDocumentUpdateSnapshotStream = documentChanges.stream()
+                .filter(doc -> doc.getType().equals(DocumentChange.Type.MODIFIED))
+                .map(DocumentChange::getDocument);
+
+        queryDocumentUpdateSnapshotStream
+                .forEach(doc -> {
+                    Conversation conversation = doc.toObject(Conversation.class);
+
+                    getOptionalConversation(conversation.getId(),
+                            cv -> {
+                                cv.setMessage(conversation.getMessage());
+                                cv.setLastDateSent(conversation.getLastDateSent());
+                            }, () -> {
+                            });
+
+                });
+
+        conversationAddStream
+                .forEach(this.conversations::add);
+
+        queryDocumentUpdateSnapshotStream.close();
+
+    }
+
+    @Override
+    public void onClick(Conversation conversation) {
+        Intent chatRecentIntent = new Intent(getApplicationContext(), ChatSimpleActivity.class);
+        HashMap<String, Object> whereArgs = getNewStringHashMap();
+        whereArgs.put(Conversations.KEY_SENDER, conversation.getSenderName());
+
+        this.userCollection.getCollection(whereArgs,
+                data -> {
+                    User userReceived = (User) data.get(KEY_USER_OBJ);
+                    if (Objects.isNull(userReceived)) {
+                        return;
+                    }
+                    chatRecentIntent.putExtra(KEY_CONVERSATION_OBJ, userReceived);
+                    startActivity(chatRecentIntent);
+                },
+                fail -> getOnFailFirebaseConnection());
+
+    }
+
+    private HashMap<String, Object> getNewStringHashMap() {
+        return new HashMap<>();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        listenRecentMessages();
     }
 
     //    Update action when all actions done.
     private Runnable getOnFinishLoadConversations() {
         return () -> {
+            if (!this.conversations.isEmpty()) {
+                this.flagFirstLogin = false;
+            }
             this.recentMessageAdapter.notifyDataSetChanged();
-
-            this.flagFirstLogin = false;
-
             this.binding.recentConversationsRecycler.smoothScrollToPosition(0);
             this.binding.recentConversationsRecycler.setVisibility(View.VISIBLE);
             this.binding.progressBar.setVisibility(View.GONE);
@@ -144,6 +192,7 @@ public class MainActivity extends AppCompatActivity implements EventListener<Que
 
                     // TODO
                     String sender = userId.equals(message.getSenderId()) ? message.getReceivedId() : message.getSenderId();
+                    String receiver = !userId.equals(message.getSenderId()) ? message.getReceivedId() : message.getSenderId();
 
                     this.userCollection.getCollection(sender,
                             dataUser -> {
@@ -154,10 +203,13 @@ public class MainActivity extends AppCompatActivity implements EventListener<Que
 
                                 conversation.setSenderName(user.getAlias());
                                 conversation.setSenderImage(user.getImage());
+                                conversation.setSenderId(receiver);
 
 //                                Refresh the view
                                 getOnFinishLoadConversations().run();
-                            }, getOnFailFirebaseConnection());
+                            }, fail -> {
+                                endOnNoFoundRecentMessages(NO_CHATS_RECENT);
+                            });
 
                 }, getOnFailFirebaseConnection());
     }
@@ -172,7 +224,7 @@ public class MainActivity extends AppCompatActivity implements EventListener<Que
 
     private void loadRecentMessages() {
         this.conversations = new TreeSet<>(Comparator.comparing(Conversation::getLastDateSent));
-        this.recentMessageAdapter = new RecentMessageAdapter(this.conversations);
+        this.recentMessageAdapter = new RecentMessageAdapter(this.conversations, this);
         this.binding.recentConversationsRecycler.setAdapter(this.recentMessageAdapter);
     }
 
@@ -184,33 +236,47 @@ public class MainActivity extends AppCompatActivity implements EventListener<Que
 
             QuerySnapshot taskResult = task.getResult();
 
-            taskResult.getDocuments().forEach(documentSnapshot -> {
-                Conversation c = documentSnapshot.toObject(Conversation.class);
-                if (Objects.isNull(c)) {
-                    return;
-                }
+            String userId = this.loggedPreferencesManager.getString(KEY_USER_ID);
+
+            taskResult.getDocuments()
+                    .forEach(documentSnapshot -> {
+
+                        Conversation c = documentSnapshot.toObject(Conversation.class);
+                        c.setId(documentSnapshot.getId());
+                        if (Objects.isNull(c)) {
+                            return;
+                        }
 //                        Get the conversation
-                this.chatMessageCollection.getCollection(c.getLastMessageId(), data -> {
-                    ChatMessage msg = (ChatMessage) data.get(KEY_CHAT_OBJ);
+                        this.chatMessageCollection.getCollection(c.getLastMessageId(), data -> {
+                            ChatMessage msg = (ChatMessage) data.get(KEY_CHAT_OBJ);
 
-                    if (Objects.isNull(msg)) {
-                        return;
-                    }
+                            if (Objects.isNull(msg)) {
+                                endOnNoFoundRecentMessages(NO_CHATS_RECENT);
+                                return;
+                            }
 
-                    HashMap<String, Object> hashMap = getNewHashMap();
-                    hashMap.put(KEY_LAST_MESSAGE_ID, msg.getId());
-                    this.conversationCollection.applyCollectionListener(hashMap, this);
-                }, fail -> MessagesAppGenerator.showToast(getApplicationContext(), fail.get(MESSAGE).toString(), FAIL_GET_RESPONSE));
-            });
+                            if(!(msg.getSenderId().equals(userId) || msg.getReceivedId().equals(userId))){
+                                return;
+                            }
+
+                            HashMap<Object, Object> hashMap = getNewHashMap();
+                            hashMap.put(FieldPath.documentId(), c.getId());
+                            this.conversationCollection.applyCollectionListener(hashMap, this);
+                        }, fail -> {
+                            endOnNoFoundRecentMessages(NO_CHATS_RECENT);
+                        });
+                    });
 
         };
 
         this.conversationCollection.applyCollectionListener(getChatsRelated);
     }
 
-    @NonNull
     private void getOptionalConversation(String id, Consumer<Conversation> consumer, Runnable onFail) {
-        Optional<Conversation> conversationOptional = this.conversations.stream().filter(cv -> cv.getId().equals(id)).findFirst();
+        Optional<Conversation> conversationOptional = this.conversations
+                .stream()
+                .filter(cv -> cv.getId().equals(id))
+                .findFirst();
 
         if (!conversationOptional.isPresent()) {
             onFail.run();
@@ -220,7 +286,7 @@ public class MainActivity extends AppCompatActivity implements EventListener<Que
         conversationOptional.ifPresent(consumer);
     }
 
-    @NonNull
+    @Deprecated
     private void getOptionalConversation(ChatMessage msg, Consumer<Conversation> consumer, Runnable onFail) {
         Optional<Conversation> conversationOptional = this.conversations.stream()
                 .filter(cv -> cv.getLastMessageId().equals(msg.getId())).findFirst();
@@ -234,7 +300,7 @@ public class MainActivity extends AppCompatActivity implements EventListener<Que
     }
 
     @NonNull
-    private HashMap<String, Object> getNewHashMap() {
+    private HashMap<Object, Object> getNewHashMap() {
         return new HashMap<>();
     }
 
@@ -300,6 +366,12 @@ public class MainActivity extends AppCompatActivity implements EventListener<Que
             String message = (String) data.get(MESSAGE);
             MessagesAppGenerator.showToast(getApplicationContext(), message, FAIL_GET_RESPONSE);
         };
+    }
+
+
+    private void endOnNoFoundRecentMessages(@NonNull String message) {
+        getOnFinishLoadConversations().run();
+        MessagesAppGenerator.showToast(getApplicationContext(), message, FAIL_GET_RESPONSE);
     }
 
 

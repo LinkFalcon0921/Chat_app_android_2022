@@ -22,7 +22,7 @@ public interface ConversationCollectionActions<ID> {
 
     void updateCollection(Conversation conversation);
 
-    void applyCollectionListener(Map<ID, Object> whereArgs, @NonNull EventListener<QuerySnapshot> l);
+    void applyCollectionListener(Map<Object, Object> whereArgs, @NonNull EventListener<QuerySnapshot> l);
 
     void applyCollectionListener(OnCompleteListener<QuerySnapshot> onComplete);
 }

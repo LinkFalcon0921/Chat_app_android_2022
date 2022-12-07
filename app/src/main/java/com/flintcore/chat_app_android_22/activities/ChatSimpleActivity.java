@@ -45,11 +45,15 @@ public class ChatSimpleActivity extends AppCompatActivity
         implements EventListener<QuerySnapshot>, OnCompleteListener<QuerySnapshot>,
         OnSuccessListener<DocumentReference> {
 
+    public static final int MAX_COUNT = 2;
+
+
     private ActivityChatSimpleBinding binding;
     private PreferencesManager loggedPreferencesManager;
     private ChatMessageCollection chatMessageCollection;
     private ConversationCollection conversationCollection;
 
+    private int counter;
     private String senderId;
     private User receivedUser;
     private Conversation actualConversation;
@@ -61,6 +65,7 @@ public class ChatSimpleActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         this.binding = ActivityChatSimpleBinding.inflate(getLayoutInflater());
         setContentView(this.binding.getRoot());
+        this.counter = 0;
 
         setFireStoreConnections();
 
@@ -111,7 +116,7 @@ public class ChatSimpleActivity extends AppCompatActivity
         this.binding.progressBar.setVisibility(View.GONE);
 
 //        Load recent messages
-        if (Objects.isNull(this.actualConversation) && actualChatSize > 0) {
+        if (Objects.isNull(this.actualConversation)) {
             checkRecentMessages();
         }
 
@@ -122,6 +127,10 @@ public class ChatSimpleActivity extends AppCompatActivity
     public void onComplete(@NonNull Task<QuerySnapshot> task) {
         QuerySnapshot documentSnapshots = task.getResult();
         if (!task.isSuccessful() || Objects.isNull(documentSnapshots) || documentSnapshots.isEmpty()) {
+            if (this.counter++ < MAX_COUNT) {
+                getOnNotFoundReceivedCall(this.chatMessages.get(this.chatMessages.size() - 1))
+                        .start(null);
+            }
             return;
         }
 
@@ -134,12 +143,7 @@ public class ChatSimpleActivity extends AppCompatActivity
         DocumentSnapshot document = documents.get(0);
         this.actualConversation = document.toObject(Conversation.class);
         this.actualConversation.setId(document.getId());
-    }
-
-    @NonNull
-    private Call getOnFailUnableRecentChats() {
-        return unused -> MessagesAppGenerator.showToast(getApplicationContext(),
-                "No chats recently", FAIL_GET_RESPONSE);
+        refreshChatView(this.chatMessages.size());
     }
 
     //    Called when a recent conversation is updated and ready to notify notify
@@ -172,12 +176,13 @@ public class ChatSimpleActivity extends AppCompatActivity
     }
 
     //    Buttons listeners
+
     private void setListeners() {
         this.binding.backBtn.setOnClickListener(v -> onBackPressed());
         this.binding.sendBtn.setOnClickListener(v -> sendMessageAction());
     }
-
     //    Get data from intent and preferences
+
     private void loadUserSelectedDetails() {
         this.loggedPreferencesManager = new PreferencesManager(getApplicationContext(),
                 FirebaseConstants.SharedReferences.KEY_CHAT_USER_LOGGED_PREFERENCES);
@@ -190,14 +195,14 @@ public class ChatSimpleActivity extends AppCompatActivity
 
         this.binding.userChat.setText(this.receivedUser.getAlias());
     }
-
     //    Methods to apply Listener to chat.
+
     private void listenMessages() {
         this.chatMessageCollection.setListener(this.senderId, this.receivedUser.getId(),
                 null, this);
     }
-
     //    Load the data from the messages in the database.
+
     private void loadChatData() {
         this.chatMessages = new LinkedList<>();
 
@@ -206,8 +211,8 @@ public class ChatSimpleActivity extends AppCompatActivity
 
         listenMessages();
     }
-
     //    Set a listener for notify new messages
+
     private void checkRecentMessages() {
         if (this.chatMessages.isEmpty()) {
             return;
@@ -215,19 +220,27 @@ public class ChatSimpleActivity extends AppCompatActivity
 
         ChatMessage message = this.chatMessages.get(this.chatMessages.size() - 1);
 
-        Call onNotFoundReceivedCall = unused -> {
+        this.conversationCollection.getCollection(message, this::onComplete, getOnFailUnableRecentChats());
+    }
+
+    //    Send the message
+
+    /**
+     * Not need parameters in method
+     */
+    @NonNull
+    private Call getOnNotFoundReceivedCall(ChatMessage message) {
+        return unused -> {
             ChatMessage messageInverted = new ChatMessage();
             messageInverted.setSenderId(message.getReceivedId());
             messageInverted.setReceivedId(message.getSenderId());
 
             this.conversationCollection
-                    .getCollection(messageInverted, this, getDefaultOnFailCall());
+                    .getCollection(messageInverted, this::onComplete, getDefaultOnFailCall());
         };
-        this.conversationCollection.getCollection(message, this, onNotFoundReceivedCall);
-
     }
 
-    //    Send the message
+    // Action send message
     private void sendMessageAction() {
         String message = this.binding.inputMessage.getText().toString();
         if (message.trim().isEmpty()) {
@@ -248,11 +261,7 @@ public class ChatSimpleActivity extends AppCompatActivity
         messageSent.setDatetime(messageSentDate);
 
         Call onSuccess = unused -> {
-            if (Objects.nonNull(this.actualConversation)) {
-                setLastRecentConversation(messageSent);
-            } else {
-                setNewRecentConversation(messageSent);
-            }
+            updateConversation(messageSent);
 
             this.binding.inputMessage.setText(null);
             refreshChatView(this.chatMessages.size());
@@ -263,6 +272,10 @@ public class ChatSimpleActivity extends AppCompatActivity
         this.chatMessageCollection.addCollection(messageSent, onSuccess, onFail);
     }
 
+    private void updateConversation(ChatMessage messageSent) {
+        setLastRecentConversation(messageSent);
+    }
+
     private void setNewRecentConversation(ChatMessage messageSent) {
         this.actualConversation = new Conversation();
         this.actualConversation.setLastMessageId(messageSent.getId());
@@ -271,7 +284,13 @@ public class ChatSimpleActivity extends AppCompatActivity
     }
 
     // For recent listener : create new recent conversation
+
     private void setLastRecentConversation(ChatMessage messageSent) {
+        if (Objects.isNull(this.actualConversation)) {
+            setNewRecentConversation(messageSent);
+            return;
+        }
+
         this.actualConversation.setLastMessageId(messageSent.getId());
         this.actualConversation.setLastDateSent(new Date());
         this.conversationCollection.updateCollection(this.actualConversation);
@@ -287,5 +306,11 @@ public class ChatSimpleActivity extends AppCompatActivity
             MessagesAppGenerator.showToast(getApplicationContext(), message,
                     FAIL_GET_RESPONSE);
         };
+    }
+
+    @NonNull
+    private Call getOnFailUnableRecentChats() {
+        return unused -> MessagesAppGenerator.showToast(getApplicationContext(),
+                "No chats recently", FAIL_GET_RESPONSE);
     }
 }

@@ -18,13 +18,11 @@ public class User implements Serializable {
 
     @Exclude
     private String id;
-    @Exclude
     private String token;
     private String alias;
     private String image;
     private UserAccess userAccess;
 
-    @Exclude
     public String getToken() {
         return token;
     }

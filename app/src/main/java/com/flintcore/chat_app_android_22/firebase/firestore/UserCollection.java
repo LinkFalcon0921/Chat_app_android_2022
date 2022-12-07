@@ -3,11 +3,6 @@ package com.flintcore.chat_app_android_22.firebase.firestore;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.NO_USERS_AVAILABLE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.SharedReferences.KEY_FMC_TOKEN;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.COLLECTION;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_ALIAS;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_EMAIL;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_IMAGE;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_LOGIN_OBJ;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_PASS;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USERS_LIST;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_OBJ;
 
@@ -15,7 +10,6 @@ import androidx.annotation.NonNull;
 
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.models.User;
-import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldPath;
@@ -26,7 +20,6 @@ import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.messaging.FirebaseMessaging;
 
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -68,8 +61,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
 
                     List<DocumentSnapshot> documents = result.getDocuments();
                     if (documents.isEmpty()) {
-                        Exception ex = new RuntimeException(NO_USERS_AVAILABLE);
-                        callOnFail(onFail, ex);
+                        callOnFail(onFail, throwsDefaultException(NO_USERS_AVAILABLE));
                         return;
                     }
 
@@ -83,7 +75,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
                     onSuccess.start(values);
                 })
                 .addOnFailureListener(fail -> {
-                    callOnFail(onFail, new RuntimeException("No users available"));
+                    callOnFail(onFail, throwsDefaultException("No users available"));
                 });
 
     }
@@ -104,7 +96,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
                     List<DocumentSnapshot> documents = result.getDocuments();
 
                     if (documents.isEmpty()) {
-                        Exception ex = new RuntimeException(NO_USERS_AVAILABLE);
+                        Exception ex = throwsDefaultException(NO_USERS_AVAILABLE);
                         callOnFail(onFail, ex);
                         return;
                     }
@@ -117,7 +109,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
                     onSuccess.start(results);
                 })
                 .addOnFailureListener(fail -> {
-                    callOnFail(onFail, new RuntimeException("No users available"));
+                    callOnFail(onFail, throwsDefaultException("No users available"));
                 });
 
     }
@@ -151,7 +143,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
 
                         List<DocumentSnapshot> snapshotList = documentSnapshots.getDocuments();
                         if (snapshotList.isEmpty()) {
-                            callOnFail(onFail, new RuntimeException("The user does not exists"));
+                            callOnFail(onFail, throwsDefaultException("The user does not exists"));
                             return;
                         }
 
@@ -165,9 +157,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
                         onSuccess.start(results);
                     }
 
-                }).addOnFailureListener(fail -> {
-                    callOnFail(onFail, fail);
-                });
+                }).addOnFailureListener(fail -> callOnFail(onFail, fail));
     }
 
     @Override
@@ -176,7 +166,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
                 .get()
                 .addOnCompleteListener(result -> {
                     if (!result.isSuccessful() || !result.getResult().exists()){
-
+                        callOnFail(onFail, throwsDefaultException("No chats recently"));
                     }
 
                     DocumentSnapshot documentSnapshot = result.getResult();
@@ -202,9 +192,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
 
                     onSuccess.start(data);
                 })
-                .addOnFailureListener(fail -> {
-                    callOnFail(onFail, fail);
-                });
+                .addOnFailureListener(fail -> callOnFail(onFail, fail));
     }
 
     @Override
@@ -234,7 +222,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
     public void updateToken(String id, Call onSuccess, Call onFail) {
         FirebaseMessaging.getInstance().getToken()
                 .addOnSuccessListener(result ->
-                        this.connectAndGetToken(id, result, onSuccess, onFail));
+                        connectAndGetToken(id, result, onSuccess, onFail));
     }
 
     @Override
@@ -254,6 +242,11 @@ public class UserCollection extends FirebaseConnection<String, User> {
         Map<String, Object> results = new HashMap<>();
         results.put(FirebaseConstants.Results.MESSAGE, e.getMessage());
         onFail.start(results);
+    }
+
+    @NonNull
+    private RuntimeException throwsDefaultException(String message) {
+        return new RuntimeException(message);
     }
 
 }
