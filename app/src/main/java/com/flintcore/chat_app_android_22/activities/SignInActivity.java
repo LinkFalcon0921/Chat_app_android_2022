@@ -3,14 +3,9 @@ package com.flintcore.chat_app_android_22.activities;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.FAIL_GET_RESPONSE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Results.MESSAGE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_ALIAS;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_CONFIRM_PASS;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_EMAIL;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_IMAGE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_IS_SIGNED_IN;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_LOGIN_OBJ;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_PASS;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_ID;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_OBJ;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -20,7 +15,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 
 import com.flintcore.chat_app_android_22.databinding.ActivitySignInBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
@@ -29,24 +23,23 @@ import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.firebase.models.UserConstants;
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
+import com.flintcore.chat_app_android_22.firebase.queries.QueryCondition;
 import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.flintcore.chat_app_android_22.utilities.collections.CollectionsHelper;
-import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 import com.flintcore.chat_app_android_22.utilities.models.generator.DocumentValidators;
 import com.flintcore.chat_app_android_22.utilities.views.DefaultConfigs;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.firestore.DocumentSnapshot;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 public class SignInActivity extends AppCompatActivity {
 
-
-    public static final String DAT_STR = ".";
     private ActivitySignInBinding binding;
     private PreferencesManager preferencesManager;
 
@@ -70,13 +63,18 @@ public class SignInActivity extends AppCompatActivity {
             startActivity(goToMainIntent());
         }
 
-        configurateFields();
+        setValidator();
+        configureFields();
         setListenersButtons();
+    }
+
+    private void setValidator() {
+        this.userValidator = new DocumentValidators.UserValidator();
     }
 
     private void setFirebaseInstance() {
         this.userCollection = UserCollection.getInstance(getOnFailFirebaseConnection());
-        this.userValidator = new DocumentValidators.UserValidator();
+
         this.emailAuthentication = EmailAuthentication.getInstance(getExceptionCallResultDefault());
     }
 
@@ -86,10 +84,11 @@ public class SignInActivity extends AppCompatActivity {
             MessagesAppGenerator
                     .showToast(getApplicationContext(), fail, FAIL_GET_RESPONSE);
             this.binding.signInBtn.setEnabled(true);
+            startFirebaseRequest(false);
         };
     }
 
-    private void configurateFields() {
+    private void configureFields() {
         this.binding.emailTxt.setFilters(
                 new InputFilter[]{DefaultConfigs.InputFilters.EMAIL_INPUT_FILTER});
 
@@ -105,13 +104,11 @@ public class SignInActivity extends AppCompatActivity {
             startActivity(signUpIntent);
         });
 
-        this.binding.signInBtn.setOnClickListener(v -> {
-            v.setEnabled(false);
-            signInToFirebase();
-        });
+        this.binding.signInBtn.setOnClickListener(v -> signInToFirebase());
     }
 
     private void signInToFirebase() {
+        startFirebaseRequest(true);
 
         String email = this.binding.emailTxt.getText().toString();
         String pass = this.binding.passTxt.getText().toString();
@@ -132,18 +129,31 @@ public class SignInActivity extends AppCompatActivity {
 
                 CallResult<Exception> onFailGetUser = getExceptionCallResultDefault();
 
+                User userAccessed = accessOptional.get();
 
-                User userAccess = accessOptional.get();
+                List<QueryCondition<String, Object>> whereConditions = CollectionsHelper.getArrayList();
 
-                this.userCollection.getCollection(
-                        userAccess.getId(),
-                        user -> {
-                            user.setUserAccess(access);
+//                Call for get the data of user.
+                CallResult<Task<DocumentSnapshot>> callOnGetUser = userSnapshot -> {
+                    if (!userSnapshot.isComplete() || !userSnapshot.isSuccessful()) {
+                        callOnFailUserInfo(onFailGetUser);
+                        return;
+                    }
 
-                            savePreferences(user);
-                            toMainIntentCall();
-                        },
-                        onFailGetUser);
+                    User userFound = userSnapshot.getResult().toObject(User.class);
+
+                    if (Objects.isNull(userFound)) {
+                        callOnFailUserInfo(onFailGetUser);
+                        return;
+                    }
+
+                    savePreferences(userFound);
+//                    Go to main
+                    startActivity(goToMainIntent());
+                };
+                this.userCollection.getCollectionById(
+                        userAccessed, whereConditions,
+                        callOnGetUser, onFailGetUser);
 
             };
 
@@ -158,6 +168,11 @@ public class SignInActivity extends AppCompatActivity {
 
     }
 
+    private void callOnFailUserInfo(CallResult<Exception> onFailGetUser) {
+        RuntimeException exception = new RuntimeException(FirebaseConstants.Messages.CREDENTIALS_DOES_NOT_EXISTS);
+        onFailGetUser.onCall(exception);
+    }
+
     private void toMainIntentCall() {
         startActivity(goToMainIntent());
     }
@@ -165,27 +180,6 @@ public class SignInActivity extends AppCompatActivity {
     private void savePreferences(User user) {
         this.preferencesManager.put(KEY_IS_SIGNED_IN,
                 true);
-
-        this.preferencesManager.put(KEY_USER_ID,
-                user.getId());
-
-        this.userCollection
-                .updateAvailable(user.getId(), UserConstants.AVAILABLE);
-
-        this.preferencesManager.put(KEY_ALIAS,
-                user.getAlias());
-
-        this.preferencesManager.put(KEY_IMAGE,
-                user.getImage());
-    }
-
-
-    @Deprecated
-    private void savePreferences(Map<String, Object> data) {
-        this.preferencesManager.put(KEY_IS_SIGNED_IN,
-                true);
-
-        User user = (User) data.get(KEY_USER_OBJ);
 
         this.preferencesManager.put(KEY_USER_ID,
                 user.getId());
@@ -217,6 +211,7 @@ public class SignInActivity extends AppCompatActivity {
     @NonNull
     private Call getOnFailFirebaseConnection() {
         return data -> {
+            startFirebaseRequest(false);
             String message = data.get(MESSAGE).toString();
             showMessage(message);
         };
@@ -225,11 +220,15 @@ public class SignInActivity extends AppCompatActivity {
     //    Show the progress bar
     private void startFirebaseRequest(boolean isLoading) {
         if (isLoading) {
+            this.binding.signInBtn.setEnabled(false);
             this.binding.signUpBtn.setVisibility(View.INVISIBLE);
             this.binding.progressBarSign.setVisibility(View.VISIBLE);
-        } else {
-            this.binding.signUpBtn.setVisibility(View.VISIBLE);
-            this.binding.progressBarSign.setVisibility(View.INVISIBLE);
+            return;
         }
+
+        this.binding.signInBtn.setEnabled(true);
+        this.binding.signInBtn.setVisibility(View.VISIBLE);
+        this.binding.progressBarSign.setVisibility(View.INVISIBLE);
+
     }
 }

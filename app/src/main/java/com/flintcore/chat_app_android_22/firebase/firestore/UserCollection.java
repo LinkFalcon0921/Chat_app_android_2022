@@ -79,7 +79,7 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
 //  label methods
 
     @Override
-    public <K extends String, V extends List<Object>>
+    public <K extends String, V extends Object>
     void getCollections(@NonNull List<QueryCondition<K, V>> whereConditions,
                         @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener, CallResult<Exception> onFailListener) {
 
@@ -106,13 +106,6 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
                 })
                 .addOnFailureListener(onFail::onCall);
 
-    }
-
-    @NonNull
-    private User filterAllUserDocumentData(DocumentSnapshot document) {
-        User user = document.toObject(User.class);
-//        user.setId(document.getId());
-        return user;
     }
 
     public void getCollection(@NonNull Map<String, Object> whereArgs, Call onSuccess, Call onFail) {
@@ -165,18 +158,16 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
                 }).addOnFailureListener(fail -> callOnFail(onFail, fail));
     }
 
-    public void getCollection(String id, CallResult<User> onSuccess, CallResult<Exception> onFail) {
-        this.collection
-                .document(id)
-                .get()
-                .addOnCompleteListener(result -> {
-                    if (!result.isSuccessful() || !result.getResult().exists()) {
-                        onFail.onCall(throwsDefaultException("User not found!"));
-                    }
+    public <K extends String, V>
+    void getCollectionById(@NonNull User user,
+                           @NonNull List<QueryCondition<K, V>> whereConditions,
+                           @NonNull CallResult<Task<DocumentSnapshot>> onCompleteListener,
+                           CallResult<Exception> onFailListener) {
 
-                    User user = result.getResult().toObject(User.class);
-                    onSuccess.onCall(user);
-                }).addOnFailureListener(onFail::onCall);
+        this.collection.document(user.getId())
+                .get()
+                .addOnCompleteListener(onCompleteListener::onCall)
+                .addOnFailureListener(onFailListener::onCall);
     }
 
     public void getCollection(String userId, Call onSuccess, Call onFail) {
@@ -199,8 +190,9 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
                 .addOnFailureListener(fail -> callOnFail(onFail, fail));
     }
 
+
     @Override
-    public <K extends String, V extends List<Object>>
+    public <K extends String, V extends Object>
     void addCollectionById(@NonNull User user, @NonNull List<QueryCondition<K, V>> whereConditions,
                            @NonNull CallResult<Void> onCompleteListener, CallResult<Exception> onFailListener) {
 
@@ -211,22 +203,7 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
 
     }
 
-//    TODO REPLACE AND DELETE
-
-    public void addCollectionWithId(User user, CallResult<User> onSuccess,
-                                    CallResult<Exception> onFail) {
-        Map<String, Object> data = new HashMap<>();
-
-//        Add methods for auto id
-        this.collection.document(user.getId())
-                .set(user)
-                .addOnSuccessListener(result -> {
-
-                    data.put(KEY_USER_OBJ, user);
-                    onSuccess.onCall(user);
-                })
-                .addOnFailureListener(onFail::onCall);
-    }
+//    TODO LABEL Complete the method for user info activity
 
     public void deleteCollection(String s, Call onSuccess, Call onFail) {
     }
@@ -243,7 +220,7 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
     }
 
     @Override
-    public <K extends String, V extends List<Object>>
+    public <K extends String, V extends Object>
     void updateToken(@NonNull User user, @NonNull List<QueryCondition<K, V>> whereConditions,
                      @NonNull CallResult<String> onCompleteListener, CallResult<Exception> onFailListener) {
 
@@ -275,7 +252,7 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
 
 
     @Override
-    public <K extends String, V extends List<Object>>
+    public <K extends String, V extends Object>
     void updateAvailability(@NonNull User user, @NonNull List<QueryCondition<K, V>> whereConditions,
                             @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener, CallResult<Exception> onFailListener) {
         this.collection
@@ -293,7 +270,7 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
                 .update(KEY_AVAILABLE, newValue);
     }
 
-    public <K extends String, V extends Object & List<Object>>
+    public <K extends String, V extends Object>
     void applyUserListener(@NonNull User user, @NonNull List<QueryCondition<K, V>> whereConditions,
                            @NonNull EventListener<QuerySnapshot> l,
                            CallResult<Exception> onFailListener) {
@@ -305,7 +282,7 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
 
     //    label Method to get Query with user id isntance
     @NonNull
-    private <K extends String, V extends Object & List<Object>>
+    private <K extends String, V extends Object>
     Query getQueryWithUserId(String userId, @NonNull List<QueryCondition<K, V>> whereConditions) {
         return this.getFirebaseQuery(whereConditions)
                 .whereEqualTo(DOCUMENT_ID, userId);
@@ -351,7 +328,7 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
 //    label methods to fill
 
     @Override
-    public <K extends String, V extends List<Object>>
+    public <K extends String, V extends Object>
     void deleteCollection(@NonNull User user, @NonNull List<QueryCondition<K, V>> whereConditions,
                           @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener, CallResult<Exception> onFailListener) {
 
