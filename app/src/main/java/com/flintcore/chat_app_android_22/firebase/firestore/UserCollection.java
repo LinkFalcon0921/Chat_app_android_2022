@@ -48,7 +48,23 @@ public class UserCollection extends FirebaseConnection<String, User> {
         }
     }
 
+    private UserCollection(CallResult<Exception> onFail) {
+        try {
+            this.collection = FirebaseFirestore.getInstance().collection(COLLECTION);
+        } catch (Exception e) {
+            onFail.onCall(e);
+        }
+    }
+
     public static UserCollection getInstance(Call onFail) {
+        if (Objects.isNull(instance)) {
+            instance = new UserCollection(onFail);
+        }
+
+        return instance;
+    }
+
+    public static UserCollection getInstance(CallResult<Exception> onFail) {
         if (Objects.isNull(instance)) {
             instance = new UserCollection(onFail);
         }

@@ -15,4 +15,7 @@
     <string name="add_user_msg">Add Contact</string>
     <string name="type_message_msg">Type to message</string>
     <string name="send_msg">send Message</string>
+    <string name="text_sample">Some Text</string>
+    <string name="delete_user_msg">Delete user</string>
+    <string name="ge_back_msg">Go back</string>
 </resources>

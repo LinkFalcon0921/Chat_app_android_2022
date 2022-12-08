@@ -15,23 +15,25 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication"
         tools:targetApi="31">
-<!--        Chat simple -->
         <activity
-            android:name=".activities.ChatSimpleActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-
-<!--        List user new contacts -->
-        <activity
-            android:name=".activities.UserActivity"
-            android:exported="false"
-            >
+            android:name=".activities.InfoUserActivity"
+            android:exported="false">
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="" />
         </activity>
-
-        <!-- Sign Up -->
+        <!-- Chat simple -->
+        <activity
+            android:name=".activities.ChatSimpleActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" /> <!-- List user new contacts -->
+        <activity
+            android:name=".activities.UserActivity"
+            android:exported="false">
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="" />
+        </activity> <!-- Sign Up -->
         <activity
             android:name=".activities.SignUpActivity"
             android:exported="false"
@@ -39,9 +41,7 @@
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="" />
-        </activity>
-
-        <!-- Log in LAUNCHER -->
+        </activity> <!-- Log in LAUNCHER -->
         <activity
             android:name=".activities.SignInActivity"
             android:exported="true"
@@ -55,18 +55,14 @@
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="" />
-        </activity>
-
-        <!-- Main activity -->
+        </activity> <!-- Main activity -->
         <activity
             android:name=".activities.MainActivity"
             android:exported="false">
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="" />
-        </activity>
-
-        <!-- Firebase service -->
+        </activity> <!-- Firebase service -->
         <service
             android:name=".firebase.FirebaseMessageService"
             android:exported="false">
