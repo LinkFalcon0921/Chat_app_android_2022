@@ -4,10 +4,11 @@ import com.google.firebase.firestore.DocumentId;
 import com.google.firebase.firestore.Exclude;
 
 import java.io.Serializable;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.Objects;
 
-public class ChatMessage implements Serializable {
+public class ChatMessage implements Serializable, Comparable<ChatMessage> {
 
     @DocumentId
     private String id;
@@ -73,5 +74,14 @@ public class ChatMessage implements Serializable {
     @Override
     public int hashCode() {
         return Objects.hash(id, senderId, receivedId, message, datetime);
+    }
+
+    @Override
+    public int compareTo(ChatMessage chatMessage) {
+        return Comparator.comparing(ChatMessage::getId)
+                .thenComparing(ChatMessage::getDatetime)
+                .thenComparing(ChatMessage::getReceivedId)
+                .thenComparing(ChatMessage::getSenderId)
+                .compare(this, chatMessage);
     }
 }

@@ -3,20 +3,22 @@ package com.flintcore.chat_app_android_22.firebase.auth;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.CREDENTIALS_DOES_NOT_EXISTS;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.NOT_VALID_CREEDENTIALS;
 
+import android.net.Uri;
+
 import androidx.annotation.NonNull;
 
-import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
+import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
 import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.UserProfileChangeRequest;
 
 import java.util.Objects;
 import java.util.Optional;
 
 public class EmailAuthentication {
-
 
     private static EmailAuthentication emailAuthentication;
     private FirebaseAuth authenticationInstance;
@@ -37,8 +39,12 @@ public class EmailAuthentication {
         return emailAuthentication;
     }
 
+    public boolean isLoggedInFirebase(){
+        return getUserCredentials() != null;
+    }
+
     public void createUserInstance(@NonNull UserAccess access,
-                                   CallResult<Optional<UserAccess>> credentialsCall,
+                                   CallResult<Optional<User>> credentialsCall,
                                    CallResult<Exception> exCallMessage) {
 
         this.authenticationInstance
@@ -52,14 +58,16 @@ public class EmailAuthentication {
                     }
 
                     AuthResult authResult = task.getResult();
+                    User user = new User();
 
-                    access.setId(authResult.getUser().getUid());
+                    user.setId(authResult.getUser().getUid());
+                    user.setUserAccess(access);
 
-                    credentialsCall.onCall(Optional.of(access));
+                    credentialsCall.onCall(Optional.of(user));
                 }).addOnFailureListener(exCallMessage::onCall);
     }
 
-    public void authenticateSignIn(UserAccess access, CallResult<Optional<UserAccess>> credentialCall,
+    public void authenticateSignIn(UserAccess access, CallResult<Optional<User>> credentialCall,
                                    CallResult<Exception> exCallMessage) {
 
         this.authenticationInstance
@@ -70,17 +78,38 @@ public class EmailAuthentication {
                         exCallMessage.onCall(getException(CREDENTIALS_DOES_NOT_EXISTS));
                         return;
                     }
-                    FirebaseUser user = task.getResult().getUser();
+                    FirebaseUser fbUser = task.getResult().getUser();
 
-                    if (Objects.isNull(user)) {
+                    if (Objects.isNull(fbUser)) {
                         exCallMessage.onCall(getException(NOT_VALID_CREEDENTIALS));
                         return;
                     }
 
-                    access.setId(user.getUid());
-                    credentialCall.onCall(Optional.of(access));
+                    User user = new User();
+                    user.setId(fbUser.getUid());
+                    credentialCall.onCall(Optional.of(user));
                 }).addOnFailureListener(exCallMessage::onCall);
 
+    }
+
+    /**
+     * User image and user image as uri
+     */
+    public void setCurrentUserData(Uri imageUri, User user, CallResult<User> onSuccess, CallResult<Exception> exCall) {
+
+        UserProfileChangeRequest userProfileUpdate = new UserProfileChangeRequest.Builder()
+                .setDisplayName(user.getAlias())
+                .setPhotoUri(imageUri)
+                .build();
+
+        this.authenticationInstance.getCurrentUser().updateProfile(userProfileUpdate)
+                .addOnSuccessListener(result -> onSuccess.onCall(user))
+                .addOnFailureListener(exCall::onCall);
+
+    }
+
+    public FirebaseUser getUserCredentials() {
+        return this.authenticationInstance.getCurrentUser();
     }
 
     @NonNull
@@ -89,4 +118,7 @@ public class EmailAuthentication {
     }
 
 
+    public String getUserLoggedId() {
+        return this.getUserCredentials().getUid();
+    }
 }

@@ -13,8 +13,7 @@ import lombok.NoArgsConstructor;
 /**Always create this class to login*/
 public class UserAccess implements Serializable {
     //   User id
-    private String id;
-    @Exclude
+//    private String id;
     private String email;
     @Exclude
     private String pass;
@@ -22,22 +21,23 @@ public class UserAccess implements Serializable {
     public UserAccess() {
     }
 
-    public String getId() {
-        return id;
-    }
+//    @Exclude
+//    public String getId() {
+//        return id;
+//    }
+//    @Exclude
+//    public void setId(String id) {
+//        this.id = id;
+//    }
 
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    @Exclude
     public String getEmail() {
         return email;
     }
-    @Exclude
+
     public void setEmail(String email) {
         this.email = email;
     }
+
     @Exclude
     public String getPass() {
         return pass;

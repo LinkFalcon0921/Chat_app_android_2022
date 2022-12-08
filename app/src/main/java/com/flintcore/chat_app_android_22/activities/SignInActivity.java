@@ -20,6 +20,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.flintcore.chat_app_android_22.databinding.ActivitySignInBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
@@ -59,14 +60,15 @@ public class SignInActivity extends AppCompatActivity {
         this.binding = ActivitySignInBinding.inflate(getLayoutInflater());
         setContentView(this.binding.getRoot());
 
+
+        setFirebaseInstance();
+
         this.preferencesManager = new PreferencesManager(getApplicationContext(),
                 FirebaseConstants.SharedReferences.KEY_CHAT_USER_LOGGED_PREFERENCES);
 
-        if (this.preferencesManager.getBoolean(KEY_IS_SIGNED_IN)) {
+        if (this.emailAuthentication.isLoggedInFirebase()) {
             startActivity(goToMainIntent());
         }
-
-        setFirebaseInstance();
 
         configurateFields();
         setListenersButtons();
@@ -80,8 +82,11 @@ public class SignInActivity extends AppCompatActivity {
 
     @NonNull
     private CallResult<Exception> getExceptionCallResultDefault() {
-        return fail -> MessagesAppGenerator
-                .showToast(getApplicationContext(), fail, FAIL_GET_RESPONSE);
+        return fail -> {
+            MessagesAppGenerator
+                    .showToast(getApplicationContext(), fail, FAIL_GET_RESPONSE);
+            this.binding.signInBtn.setEnabled(true);
+        };
     }
 
     private void configurateFields() {
@@ -95,11 +100,15 @@ public class SignInActivity extends AppCompatActivity {
     //    Set Listeners of the buttons
     public void setListenersButtons() {
         this.binding.signUpBtn.setOnClickListener(v -> {
+            v.setEnabled(false);
             Intent signUpIntent = new Intent(getApplicationContext(), SignUpActivity.class);
             startActivity(signUpIntent);
         });
 
-        this.binding.signInBtn.setOnClickListener(v -> signInToFirebase());
+        this.binding.signInBtn.setOnClickListener(v -> {
+            v.setEnabled(false);
+            signInToFirebase();
+        });
     }
 
     private void signInToFirebase() {
@@ -112,35 +121,40 @@ public class SignInActivity extends AppCompatActivity {
         access.setEmail(email);
         access.setPass(pass);
 
-        CallResult<Optional<UserAccess>> onUserFound = accessOptional -> {
-            if (!accessOptional.isPresent()) {
-                MessagesAppGenerator.showToast(getApplicationContext(),
-                        FirebaseConstants.Messages.NOT_VALID_CREEDENTIALS, FAIL_GET_RESPONSE);
-                return;
-            }
+        CallResult<UserAccess> onFieldsValidated = accessValidated -> {
 
-            CallResult<Exception> onFailGetUser =  fail ->
-                    MessagesAppGenerator.showToast(getApplicationContext(), fail.getMessage(), FAIL_GET_RESPONSE);
+            CallResult<Optional<User>> onUserFound = accessOptional -> {
+                if (!accessOptional.isPresent()) {
+                    MessagesAppGenerator.showToast(getApplicationContext(),
+                            FirebaseConstants.Messages.NOT_VALID_CREEDENTIALS, FAIL_GET_RESPONSE);
+                    return;
+                }
+
+                CallResult<Exception> onFailGetUser = getExceptionCallResultDefault();
 
 
-            UserAccess userAccess = accessOptional.get();
+                User userAccess = accessOptional.get();
 
-            this.userCollection.getCollection(
-                    userAccess.getId(),
-                    user -> {
-                        user.setUserAccess(access);
+                this.userCollection.getCollection(
+                        userAccess.getId(),
+                        user -> {
+                            user.setUserAccess(access);
 
-                        savePreferences(user);
-                        toMainIntentCall();
-                    },
-                   onFailGetUser);
+                            savePreferences(user);
+                            toMainIntentCall();
+                        },
+                        onFailGetUser);
 
+            };
+
+            CallResult<Exception> onFailAuth = getExceptionCallResultDefault();
+
+            this.emailAuthentication
+                    .authenticateSignIn(access, onUserFound, onFailAuth);
         };
 
-        CallResult<Exception> onFailAuth = getExceptionCallResultDefault();
-
-        this.emailAuthentication
-                .authenticateSignIn(access, onUserFound, onFailAuth);
+        this.userValidator.validateUserCredentials(access, onFieldsValidated,
+                getExceptionCallResultDefault());
 
     }
 

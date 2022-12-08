@@ -94,6 +94,29 @@ public abstract class DocumentValidators {
 
         }
 
+        public void validateUserCredentials(UserAccess userAccess, CallResult<UserAccess> onSuccess, CallResult<Exception> onFail) {
+            try {
+                String email = userAccess.getEmail().trim();
+
+                if (email.isEmpty()) {
+                    throw getException("Fill email field");
+                }
+                userAccess.setEmail(email);
+
+                String pass = userAccess.getPass().trim();
+
+                if (pass.isEmpty()) {
+                    throw getException("Fill password field");
+                }
+                userAccess.setPass(pass);
+
+                onSuccess.onCall(userAccess);
+            } catch (Exception e) {
+                onFail.onCall(e);
+            }
+
+        }
+
         public void validateUser(User user,
                                            Map<String, Object> additionalFields,
                                            @NonNull CallResult<Optional<User>> onCompleteValidation,
@@ -224,7 +247,7 @@ public abstract class DocumentValidators {
 
             Bitmap previewBitmap = Bitmap.createScaledBitmap(bitmap, previewWidth, previewHeight, false);
             ByteArrayOutputStream byteOutputImage = new ByteArrayOutputStream();
-            previewBitmap.compress(Bitmap.CompressFormat.JPEG, quality, byteOutputImage);
+            previewBitmap.compress(Bitmap.CompressFormat.PNG, quality, byteOutputImage);
 
             byte[] bytedImage = byteOutputImage.toByteArray();
 

@@ -40,6 +40,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Date;
@@ -111,7 +112,11 @@ public class ChatSimpleActivity extends AppCompatActivity
                     this.chatMessages.add(newChatMessage);
 
                 case REMOVED:
-                    CallResult<ChatMessage> onChatMatches = this.chatMessages::remove;
+                    CallResult<ChatMessage> onChatMatches = chat -> {
+                        this.chatMessages.remove(chat);
+                        int objIndex = Arrays.binarySearch(this.chatMessages.toArray(), chat);
+                        this.chatAdapter.notifyItemRemoved(objIndex);
+                    };
 
                     this.chatMessages.stream()
                             .filter(chat -> chat.getId().equals(documentSnapshot.getId()))
@@ -143,7 +148,7 @@ public class ChatSimpleActivity extends AppCompatActivity
     @Override
     public void onComplete(@NonNull Task<QuerySnapshot> task) {
         QuerySnapshot documentSnapshots = task.getResult();
-        if (!task.isSuccessful() || Objects.isNull(documentSnapshots) || documentSnapshots.isEmpty()) {
+        if (!task.isSuccessful() || Objects.isNull(documentSnapshots)) {
             if (this.counter++ < MAX_COUNT) {
                 getOnNotFoundReceivedCall(this.getChatMessage(this.chatMessages.size() - 1))
                         .start(null);
@@ -154,8 +159,6 @@ public class ChatSimpleActivity extends AppCompatActivity
         List<DocumentSnapshot> documents = documentSnapshots.getDocuments();
 
         if (documents.isEmpty()) {
-//        Set the conversation if not exists one
-            this.actualConversation = new Conversation();
             return;
         }
 
@@ -226,8 +229,13 @@ public class ChatSimpleActivity extends AppCompatActivity
     //    Methods to apply Listener to chat.
 
     private void listenMessages() {
+        if (Objects.isNull(this.actualConversation)){
+//        Set the conversation if not exists one
+            this.actualConversation = new Conversation();
+        }
+
         this.chatMessageCollection.setListener(getLoggedUserId(), this.receivedUser.getId(),
-                null, this);
+                null, this::onEvent);
     }
     //    Load the data from the messages in the database.
 
@@ -293,7 +301,7 @@ public class ChatSimpleActivity extends AppCompatActivity
         messageSent.setDatetime(messageSentDate);
 
         Call onSuccess = unused -> {
-            updateConversation(messageSent);
+            pushConversation(messageSent);
 
             this.binding.inputMessage.setText(null);
             refreshChatView(this.chatMessages.size());
@@ -305,36 +313,32 @@ public class ChatSimpleActivity extends AppCompatActivity
     }
 
     // On update conversation when send message
-    private void updateConversation(ChatMessage messageSent) {
-        setLastRecentConversation(messageSent);
-//        Set last receiver in the chat
+    private void pushConversation(ChatMessage messageSent) {
         this.actualConversation.getReceiver().setReceiver(messageSent.getReceivedId());
         this.actualConversation.getReceiver().setWasViewed(false);
-
-    }
-
-    private void setNewRecentConversation(ChatMessage messageSent) {
         this.actualConversation.setLastMessageId(messageSent.getId());
         this.actualConversation.setLastDateSent(new Date());
+
+        if (Objects.isNull(this.actualConversation.getId()) || Objects.isNull(this.actualConversation)) {
+            this.conversationCollection.addCollection(this.actualConversation, this::onSuccess);
+            return;
+        }
+
+        this.conversationCollection.updateCollection(this.actualConversation,
+                vd -> {
+                    this.conversationCollection.applyCollectionListener(task -> {
+                        HashMap<Object, Object> hashMap = CollectionsHelper.getHashMap();
+                        hashMap.put(FieldPath.documentId(), this.actualConversation.getId());
+
+                        this.conversationCollection.applyCollectionListener(hashMap, (result, fail) ->{});
+                    });
+                },
+                getDefaultOnFailCall());
     }
 
     //    Get logged user
     private String getLoggedUserId() {
         return this.loggedPreferencesManager.getString(FirebaseConstants.Users.KEY_USER_ID);
-    }
-
-    // For recent listener : create new recent conversation
-
-    private void setLastRecentConversation(ChatMessage messageSent) {
-        if (Objects.isNull(this.actualConversation)) {
-            setNewRecentConversation(messageSent);
-            this.conversationCollection.addCollection(this.actualConversation, this::onSuccess);
-            return;
-        }
-
-        this.actualConversation.setLastMessageId(messageSent.getId());
-        this.actualConversation.setLastDateSent(new Date());
-        this.conversationCollection.updateCollection(this.actualConversation);
     }
 
     private void refreshChatView(int chatMessagesPos) {

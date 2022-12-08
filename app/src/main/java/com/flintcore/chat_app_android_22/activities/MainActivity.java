@@ -4,15 +4,21 @@ import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.ChatM
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.FAIL_GET_RESPONSE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.NO_CHATS_RECENT;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Results.MESSAGE;
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_IMAGE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_ID;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_OBJ;
 
+import android.Manifest;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -20,6 +26,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.flintcore.chat_app_android_22.adapters.RecentMessageAdapter;
 import com.flintcore.chat_app_android_22.databinding.ActivityMainBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
+import com.flintcore.chat_app_android_22.firebase.auth.EmailAuthentication;
 import com.flintcore.chat_app_android_22.firebase.firestore.ChatMessageCollection;
 import com.flintcore.chat_app_android_22.firebase.firestore.ConversationCollection;
 import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
@@ -32,8 +39,12 @@ import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
+import com.flintcore.chat_app_android_22.utilities.collections.CollectionsHelper;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
+import com.flintcore.chat_app_android_22.utilities.encrypt.ImageFormatter;
 import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
@@ -42,6 +53,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -65,6 +77,7 @@ public class MainActivity extends AppCompatActivity
     private UserCollection userCollection;
     private ConversationCollection conversationCollection;
     private ChatMessageCollection chatMessageCollection;
+    private EmailAuthentication emailAuthentication;
 
     private RecentMessageAdapter recentMessageAdapter;
     private Collection<Conversation> conversations;
@@ -82,12 +95,12 @@ public class MainActivity extends AppCompatActivity
 //        TODO logic to offline
         this.flagFirstLogin = true;
 
-        this.loadLoggedImage();
-        this.updateToken();
+        loadLoggedImage();
+        updateToken();
         loadRecentMessages();
 
         listenRecentMessages();
-        this.setListeners();
+        setListeners();
     }
 
     //    EventListener for recent conversations
@@ -174,7 +187,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onClick(Conversation conversation) {
         Intent chatRecentIntent = new Intent(getApplicationContext(), ChatSimpleActivity.class);
-        HashMap<String, Object> whereArgs = getNewStringHashMap();
+        HashMap<String, Object> whereArgs = CollectionsHelper.getHashMap();
         whereArgs.put(FieldPath.documentId().toString(), conversation.getLastSenderId());
 
         this.userCollection.getCollection(whereArgs,
@@ -186,8 +199,7 @@ public class MainActivity extends AppCompatActivity
 
 //                    Set flag to already recent message saw.
                     conversation.getReceiver().setWasViewed(true);
-                    this.conversationCollection
-                            .updateCollection(conversation);
+                    this.conversationCollection.updateCollection(conversation, vd ->{}, getOnFailFirebaseConnection());
                     chatRecentIntent.putExtra(KEY_USER_OBJ, userReceived);
                     startActivity(chatRecentIntent);
                 },
@@ -255,6 +267,8 @@ public class MainActivity extends AppCompatActivity
         this.conversationCollection = ConversationCollection.getConversationInstance(getOnFailFirebaseConnection());
 
         this.chatMessageCollection = ChatMessageCollection.getChatMessageCollectionInstance(getOnFailFirebaseConnection());
+
+        this.emailAuthentication = EmailAuthentication.getInstance(getExceptionCallResult());
     }
 
     private void loadRecentMessages() {
@@ -263,7 +277,7 @@ public class MainActivity extends AppCompatActivity
         this.binding.recentConversationsRecycler.setAdapter(this.recentMessageAdapter);
     }
 
-//    Listen recents messages in the app.
+    //    Listen recents messages in the app via conversations.
     private void listenRecentMessages() {
         final OnCompleteListener<QuerySnapshot> getChatsRelated = task -> {
             if (!task.isComplete() || !task.isSuccessful()) {
@@ -306,7 +320,7 @@ public class MainActivity extends AppCompatActivity
                         return;
                     }
 
-                    HashMap<Object, Object> hashMap = getNewHashMap();
+                    HashMap<Object, Object> hashMap = CollectionsHelper.getHashMap();
                     hashMap.put(FieldPath.documentId(), c.getId());
 
                     this.conversationCollection.applyCollectionListener(hashMap, this::onEvent);
@@ -347,15 +361,6 @@ public class MainActivity extends AppCompatActivity
         conversationOptional.ifPresent(callResult::onCall);
     }
 
-    @NonNull
-    private HashMap<Object, Object> getNewHashMap() {
-        return new HashMap<>();
-    }
-
-    private HashMap<String, Object> getNewStringHashMap() {
-        return new HashMap<>();
-    }
-
     private void setListeners() {
         this.binding.logoutBtn.setOnClickListener(v -> signOutUser());
 //        Open users List to add
@@ -372,6 +377,7 @@ public class MainActivity extends AppCompatActivity
 
         Call onSuccess = unused -> {
             this.loggedPreferencesManager.clear();
+            FirebaseAuth.getInstance().signOut();
             startActivity(goToSignInIntent());
             finish();
         };
@@ -408,10 +414,25 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void loadLoggedImage() {
-        byte[] imageBytes = Encryptions.decryptAndroidImageFromString(this.loggedPreferencesManager.getString(FirebaseConstants.Users.KEY_IMAGE));
+        if (!this.loggedPreferencesManager.contains(KEY_IMAGE)){
+            MessagesAppGenerator.showToast(getApplicationContext(), "Error getting data." +
+                    "\nLogging out...",
+                    FAIL_GET_RESPONSE);
+            signOutUser();
+            return;
+        }
+        String userImage = this.loggedPreferencesManager.getString(KEY_IMAGE);
+
+        byte[] imageBytes = Encryptions.decryptAndroidImageFromString(userImage);
 
         Bitmap imageBit = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
         this.binding.imagePreview.setImageBitmap(imageBit);
+    }
+
+    @NonNull
+    private CallResult<Exception> getExceptionCallResult() {
+        return fail -> MessagesAppGenerator
+                .showToast(getApplicationContext(), fail, FAIL_GET_RESPONSE);
     }
 
     @NonNull
@@ -443,11 +464,11 @@ public class MainActivity extends AppCompatActivity
         this.userCollection.updateAvailable(getLoggedUserId(), UserConstants.NOT_AVAILABLE);
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-
-        this.userCollection.updateAvailable(getLoggedUserId(), UserConstants.NOT_AVAILABLE);
-    }
+//    @Override
+//    protected void onDestroy() {
+//        super.onDestroy();
+//
+//        this.userCollection.updateAvailable(getLoggedUserId(), UserConstants.NOT_AVAILABLE);
+//    }
 
 }

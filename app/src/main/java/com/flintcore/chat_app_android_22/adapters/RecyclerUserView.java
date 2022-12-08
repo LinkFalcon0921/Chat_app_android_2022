@@ -16,14 +16,16 @@ import com.flintcore.chat_app_android_22.listeners.OnRecyclerItemListener;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 import com.makeramen.roundedimageview.RoundedImageView;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 public class RecyclerUserView extends RecyclerView.Adapter<RecyclerUserView.UserViewHolder> {
 
     private final OnRecyclerItemListener<User> onClickRecycler;
-    private final List<User> users;
+    private final Collection<User> users;
 
-    public RecyclerUserView(List<User> users, OnRecyclerItemListener<User> onClickRecycler) {
+    public RecyclerUserView(Collection<User> users, OnRecyclerItemListener<User> onClickRecycler) {
         this.users = users;
         this.onClickRecycler = onClickRecycler;
     }
@@ -41,7 +43,11 @@ public class RecyclerUserView extends RecyclerView.Adapter<RecyclerUserView.User
 
     @Override
     public void onBindViewHolder(@NonNull UserViewHolder holder, int position) {
-        holder.setDataUser(this.users.get(position));
+        holder.setDataUser(this.getDataUser(position));
+    }
+
+    private User getDataUser(int position) {
+        return this.users.toArray(new User[0])[position];
     }
 
     @Override
@@ -67,7 +73,11 @@ public class RecyclerUserView extends RecyclerView.Adapter<RecyclerUserView.User
             this.binding.nameTxt.setText(user.getAlias());
             applyImage(user.getImage(), this.binding.ImagePreview);
             this.binding.secondOptionalTxt.setText(user.getUserAccess().getEmail());
-            this.itemView.setOnClickListener(v -> onClickRecycler.onClick(user));
+            this.itemView.setOnClickListener(v -> {
+                v.setEnabled(false);
+                onClickRecycler.onClick(user);
+                v.setEnabled(true);
+            });
         }
     }
 }

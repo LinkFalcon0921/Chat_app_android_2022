@@ -11,6 +11,7 @@ import androidx.annotation.NonNull;
 import com.flintcore.chat_app_android_22.firebase.models.ChatMessage;
 import com.flintcore.chat_app_android_22.firebase.models.Conversation;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
+import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.firestore.CollectionReference;
@@ -58,13 +59,21 @@ public class ConversationCollection implements ConversationCollectionActions<Str
     }
 
     @Override
-    public void updateCollection(Conversation conversation) {
+    public void updateCollection(Conversation conversation, CallResult<Void> onSuccess, Call onFail) {
         this.collection
                 .document(conversation.getId())
                 .update(
                         KEY_LAST_MESSAGE_ID, conversation.getLastMessageId(),
                         KEY_LAST_DATE, conversation.getLastDateSent()
-                );
+                ).addOnCompleteListener(result ->{
+                    if (!result.isSuccessful()){
+                        return;
+                    }
+
+                    onSuccess.onCall(null);
+                }).addOnFailureListener(fail ->{
+                    callOnFail(onFail, throwsException("Unable to send"));
+                });
     }
 
     /**Use message id for query*/

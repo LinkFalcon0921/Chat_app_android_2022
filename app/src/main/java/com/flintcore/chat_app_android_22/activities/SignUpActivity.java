@@ -9,6 +9,7 @@ import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_ID;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_OBJ;
 
+import android.Manifest;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -37,6 +38,7 @@ import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.flintcore.chat_app_android_22.utilities.collections.CollectionsHelper;
+import com.flintcore.chat_app_android_22.utilities.encrypt.ImageFormatter;
 import com.flintcore.chat_app_android_22.utilities.models.generator.DocumentValidators;
 import com.flintcore.chat_app_android_22.utilities.views.DefaultConfigs;
 import com.makeramen.roundedimageview.RoundedDrawable;
@@ -53,35 +55,37 @@ public class SignUpActivity extends AppCompatActivity {
     private ActivitySignUpBinding binding;
     private PreferencesManager preferencesManager;
 
+    private Uri imageUriData;
     private EmailAuthentication emailAuthentication;
     private UserCollection userCollection;
     private DocumentValidators.UserValidator userValidator;
 
     //    Activity results
 //    pick image
-    private final ActivityResultLauncher<Intent> imagePickerActionResult =
-            registerForActivityResult(
-                    new ActivityResultContracts.StartActivityForResult(),
-                    result -> {
-                        Intent imageIntent = result.getData();
-                        if (result.getResultCode() == RESULT_OK && Objects.nonNull(imageIntent)) {
-                            try {
-                                Uri imageData = imageIntent.getData();
-                                if (Objects.isNull(imageData)) {
-                                    return;
-                                }
-
-                                InputStream imageUriStream = getContentResolver().openInputStream(imageData);
-                                Bitmap previewSelected = BitmapFactory.decodeStream(imageUriStream);
-                                this.binding.imagePreview.setImageBitmap(previewSelected);
-
-                                this.binding.imagePreviewTxt.setVisibility(View.GONE);
-
-                            } catch (FileNotFoundException e) {
-                                e.printStackTrace();
-                            }
+    ActivityResultLauncher<Intent> imagePickerActionResult = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            imageUri ->{
+                Intent uriData = imageUri.getData();
+                if (imageUri.getResultCode() == RESULT_OK && Objects.nonNull(uriData)) {
+                    try {
+                        imageUriData = uriData.getData();
+                        if (Objects.isNull(imageUriData)) {
+                            return;
                         }
-                    });
+
+                        Bitmap previewSelected = ImageFormatter
+                                .getImageAs(getContentResolver(), imageUriData);
+
+                        this.binding.imagePreview.setImageBitmap(previewSelected);
+
+                        this.binding.imagePreviewTxt.setVisibility(View.GONE);
+
+                    } catch (FileNotFoundException e) {
+                        getExceptionCallResultDefault().onCall(e);
+                    }
+                }
+            }
+    );
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,14 +93,14 @@ public class SignUpActivity extends AppCompatActivity {
         this.binding = ActivitySignUpBinding.inflate(getLayoutInflater());
         setContentView(this.binding.getRoot());
 
+        setFirestoreInstances();
+
         this.preferencesManager = new PreferencesManager(getApplicationContext(),
                 FirebaseConstants.SharedReferences.KEY_CHAT_USER_LOGGED_PREFERENCES);
 
-        if (this.preferencesManager.getBoolean(KEY_IS_SIGNED_IN)) {
+        if (this.emailAuthentication.isLoggedInFirebase()) {
             startActivity(goToMainIntent());
         }
-
-        setFirestoreInstances();
 
         configurateFields();
         setListenersButtons();
@@ -117,6 +121,8 @@ public class SignUpActivity extends AppCompatActivity {
         return fail -> {
             startFirebaseRequest(false);
             MessagesAppGenerator.showToast(getApplicationContext(), fail, FAIL_GET_RESPONSE);
+            this.binding.signUpBtn.setEnabled(true);
+            this.binding.imagePreview.setEnabled(true);
         };
 
     }
@@ -156,11 +162,15 @@ public class SignUpActivity extends AppCompatActivity {
 //     TODO  Return to view SignIn
 //        this.binding.signInBtn.setOnClickListener(v -> onBackPressed());
 
-        this.binding.signUpBtn.setOnClickListener(v -> signUpToFirestore());
+        this.binding.signUpBtn.setOnClickListener(v -> {
+            v.setEnabled(false);
+            signUpToFirestore();
+        });
         this.binding.imagePreview.setOnClickListener(v -> {
+            v.setEnabled(false);
             Intent imagePick = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
             imagePick.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            this.imagePickerActionResult.launch(imagePick);
+            imagePickerActionResult.launch(imagePick);
         });
     }
 
@@ -201,16 +211,28 @@ public class SignUpActivity extends AppCompatActivity {
                 return;
             }
             User user = userValidated.get();
+            this.imageUriData = Uri.parse(user.getImage());
 //            When user credentials is valid
-            CallResult<Optional<UserAccess>> onValidUserAccess = accessValidated -> {
+            CallResult<Optional<User>> onValidUserAccess = accessValidated -> {
                 if (!accessValidated.isPresent()) {
                     return;
                 }
 
                 user.setId(accessValidated.get().getId());
+
+//                Add ImageUri and name to Auth
                 CallResult<User> onSuccess = userWithAccess -> {
-                    savePreferences(userWithAccess);
-                    startActivity(goToMainIntent());
+                    CallResult<User> onUserSettled = userDone -> {
+                        this.imageUriData = null;
+                        savePreferences(userWithAccess);
+                        startActivity(goToMainIntent());
+                    };
+
+//                    If the data was not settled in Firebase
+                    CallResult<Exception> notSettledDataUser = getExceptionCallResultDefault();
+
+                    this.emailAuthentication.setCurrentUserData(this.imageUriData, userWithAccess,
+                            onUserSettled, notSettledDataUser);
                 };
 
                 CallResult<Exception> onFail = getExceptionCallResultDefault();

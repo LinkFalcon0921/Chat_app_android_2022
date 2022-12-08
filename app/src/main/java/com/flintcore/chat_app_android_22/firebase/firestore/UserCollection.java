@@ -23,6 +23,7 @@ import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.messaging.FirebaseMessaging;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +56,24 @@ public class UserCollection extends FirebaseConnection<String, User> {
         return instance;
     }
 
+    public  void getCollections(String userId, CallResult<Collection<User>> onSuccess, CallResult<Exception> onFail) {
+
+        this.collection
+                .whereNotEqualTo(FieldPath.documentId(), userId)
+                .get()
+                .addOnSuccessListener(result -> {
+                    Collection<User> userIds = result.getDocuments()
+                            .stream().map(doc -> doc.toObject(User.class))
+                            .collect(Collectors.toList());
+
+                    onSuccess.onCall(userIds);
+                })
+                .addOnFailureListener(onFail::onCall);
+
+    }
+
     @Override
+    @Deprecated
     public void getCollections(String userId, Call onSuccess, Call onFail) {
 
         this.collection
@@ -269,9 +287,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
                 .addOnSuccessListener(unused -> {
                     onSuccess.start(null);
                 }).addOnFailureListener(fail -> {
-                    Map<String, Object> values = new HashMap<>();
-                    values.put(FirebaseConstants.Results.MESSAGE, DEFAULT_MESSAGE_UNABLE_TOKEN_UPDATE);
-                    onFail.start(values);
+                    callOnFail(onFail, fail);
                 });
     }
 

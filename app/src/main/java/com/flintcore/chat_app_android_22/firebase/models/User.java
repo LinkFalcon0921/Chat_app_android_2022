@@ -23,7 +23,6 @@ public class User implements Serializable, Comparable<User>{
     private String image;
     private int available;
 
-    @Exclude
     private UserAccess userAccess;
 
     public User() {
@@ -62,12 +61,10 @@ public class User implements Serializable, Comparable<User>{
         this.image = image;
     }
 
-    @Exclude
     public UserAccess getUserAccess() {
         return userAccess;
     }
 
-    @Exclude
     public void setUserAccess(UserAccess userAccess) {
         this.userAccess = userAccess;
     }
