@@ -1,6 +1,7 @@
 package com.flintcore.chat_app_android_22.activities;
 
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.ChatMessages.KEY_CHAT_OBJ;
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.ConversationReceiver.KEY_CONVERSATION_LAST_RECEIVER_ID;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.FAIL_GET_RESPONSE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.NO_CHATS_RECENT;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Results.MESSAGE;
@@ -8,17 +9,12 @@ import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_ID;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_OBJ;
 
-import android.Manifest;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 
-import androidx.activity.result.ActivityResultCallback;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -41,10 +37,8 @@ import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.flintcore.chat_app_android_22.utilities.collections.CollectionsHelper;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
-import com.flintcore.chat_app_android_22.utilities.encrypt.ImageFormatter;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
@@ -53,13 +47,13 @@ import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
-import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeSet;
@@ -150,14 +144,20 @@ public class MainActivity extends AppCompatActivity
                                     }
 
                                     cv.setMessage(message.getMessage());
+                                    int inCollection = getIndexInCollection(this.conversations, cv);
+
                                     cv.setLastDateSent(conversation.getLastDateSent());
 //                                    Apply changes
                                     cv.setReceiver(conversation.getReceiver());
-                                    updateInsertedConversation(cv);
+                                    updateInsertedConversation(inCollection, cv, this.conversations);
                                 }, onFail);
                     };
 
                     getOptionalConversation(doc.getId(), onUpdateRecentConversation);
+                    break;
+
+                default:
+                    showRecentListView();
             }
 
         }
@@ -165,22 +165,28 @@ public class MainActivity extends AppCompatActivity
     }
 
     //    Method to update the recycler when map all data.
-    private void updateInsertedConversation(Conversation conversation) {
-        ArrayList<Conversation> arrayList = new ArrayList<>(this.conversations);
+    private <T extends Comparable<T>> void updateInsertedConversation(int lastUpdatedPosition, T conversation, Collection<T> conversations) {
+        showRecentListView();
+        ArrayList<T> arrayList = new ArrayList<>(conversations);
 
-        int searchIndex = Collections.binarySearch(arrayList, conversation);
-        int recyclerChildCount = this.binding.recentConversationsRecycler.getChildCount();
+        int searchIndex = getIndexInCollection(arrayList, conversation);
 
-        this.recentMessageAdapter.notifyItemRangeChanged(searchIndex, recyclerChildCount);
+        this.recentMessageAdapter.notifyItemRangeChanged(searchIndex, lastUpdatedPosition);
+    }
+
+    private <T extends Comparable<T>> int getIndexInCollection(Collection<T> list, T conversation) {
+        showRecentListView();
+        ArrayList<T> conversationsList = new ArrayList<T>(list);
+        int searchIndex = Collections.binarySearch(conversationsList, conversation);
+        return searchIndex;
     }
 
     private void addInsertedConversation(Conversation conversation) {
         ArrayList<Conversation> arrayList = new ArrayList<>(this.conversations);
 
-        int searchIndex = Collections.binarySearch(arrayList, conversation);
-        int recyclerChildCount = this.binding.recentConversationsRecycler.getChildCount();
+        int searchIndex = getIndexInCollection(arrayList, conversation);
 
-        this.recentMessageAdapter.notifyItemRangeInserted(searchIndex, recyclerChildCount);
+        this.recentMessageAdapter.notifyItemInserted(searchIndex);
     }
 
 
@@ -199,7 +205,8 @@ public class MainActivity extends AppCompatActivity
 
 //                    Set flag to already recent message saw.
                     conversation.getReceiver().setWasViewed(true);
-                    this.conversationCollection.updateCollection(conversation, vd ->{}, getOnFailFirebaseConnection());
+                    this.conversationCollection.updateCollection(conversation, vd -> {
+                    }, getOnFailFirebaseConnection());
                     chatRecentIntent.putExtra(KEY_USER_OBJ, userReceived);
                     startActivity(chatRecentIntent);
                 },
@@ -277,63 +284,47 @@ public class MainActivity extends AppCompatActivity
         this.binding.recentConversationsRecycler.setAdapter(this.recentMessageAdapter);
     }
 
-    //    Listen recents messages in the app via conversations.
+    //    Listen recent messages in the app via conversations.
     private void listenRecentMessages() {
-        final OnCompleteListener<QuerySnapshot> getChatsRelated = task -> {
-            if (!task.isComplete() || !task.isSuccessful()) {
+
+        final OnCompleteListener<QuerySnapshot> getConversationById = task -> {
+
+            if (!task.isSuccessful()) {
                 return;
             }
 
-            QuerySnapshot taskResult = null;
-            if (task.isComplete() && task.isSuccessful()
-                    && Objects.isNull(taskResult = task.getResult())) {
-                getOnFinishLoadConversations().run();
+            QuerySnapshot taskResult = task.getResult();
+            if (Objects.isNull(taskResult) || taskResult.isEmpty()) {
                 return;
             }
 
-//            Receiver id
-            String userId = getLoggedUserId();
-            List<DocumentSnapshot> documents = taskResult.getDocuments();
+            for (DocumentSnapshot document : taskResult.getDocuments()) {
 
-            if (documents.isEmpty()) {
-                showRecentListView();
-                return;
+                Conversation c = document.toObject(Conversation.class);
+                Map<Object, Object> whereChatArgs = CollectionsHelper.getHashMap();
+
+                whereChatArgs.put(FieldPath.documentId().toString(), c.getLastMessageId());
+                whereChatArgs.put(FirebaseConstants.ChatMessages.KEY_SENDER, getLoggedUserId());
+
+                CallResult<ChatMessage> onSuccess = chatMessage -> {
+                    HashMap<Object, Object> whereReceiverArgs = CollectionsHelper.getHashMap();
+                    whereReceiverArgs.put(KEY_CONVERSATION_LAST_RECEIVER_ID, chatMessage.getReceivedId());
+                    this.conversationCollection.applyCollectionListener(whereReceiverArgs, this::onEvent);
+
+                    whereReceiverArgs.put(KEY_CONVERSATION_LAST_RECEIVER_ID, chatMessage.getSenderId());
+                    this.conversationCollection.applyCollectionListener(whereReceiverArgs, this::onEvent);
+
+                };
+
+                this.chatMessageCollection.getCollection(whereChatArgs,
+                        onSuccess, getExceptionCallResult());
             }
-            documents.forEach(documentSnapshot -> {
-
-                Conversation c = documentSnapshot.toObject(Conversation.class);
-                c.setId(documentSnapshot.getId());
-
-                if (Objects.isNull(c)) {
-                    return;
-                }
-                //                        Get the conversation
-                this.chatMessageCollection.getCollection(c.getLastMessageId(), data -> {
-                    ChatMessage msg = (ChatMessage) data.get(KEY_CHAT_OBJ);
-
-                    if (Objects.isNull(msg)) {
-                        endOnNoFoundRecentMessages(NO_CHATS_RECENT);
-                        return;
-                    }
-
-                    if (!(msg.getSenderId().equals(userId) || msg.getReceivedId().equals(userId))) {
-                        return;
-                    }
-
-                    HashMap<Object, Object> hashMap = CollectionsHelper.getHashMap();
-                    hashMap.put(FieldPath.documentId(), c.getId());
-
-                    this.conversationCollection.applyCollectionListener(hashMap, this::onEvent);
-                }, fail -> {
-                    endOnNoFoundRecentMessages(NO_CHATS_RECENT);
-                });
-            });
 
         };
-//      Listen all conversations
 
-        this.conversationCollection.applyCollectionListener(getChatsRelated);
+        this.conversationCollection.applyCollectionListener(getConversationById);
     }
+    //    Listen recent messages in the app via conversations.
 
     private String getLoggedUserId() {
         return this.loggedPreferencesManager.getString(KEY_USER_ID);
@@ -414,9 +405,9 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void loadLoggedImage() {
-        if (!this.loggedPreferencesManager.contains(KEY_IMAGE)){
+        if (!this.loggedPreferencesManager.contains(KEY_IMAGE)) {
             MessagesAppGenerator.showToast(getApplicationContext(), "Error getting data." +
-                    "\nLogging out...",
+                            "\nLogging out...",
                     FAIL_GET_RESPONSE);
             signOutUser();
             return;

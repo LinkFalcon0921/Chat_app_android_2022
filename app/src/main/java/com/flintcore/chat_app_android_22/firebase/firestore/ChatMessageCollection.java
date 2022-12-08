@@ -7,9 +7,11 @@ import androidx.annotation.NonNull;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.models.ChatMessage;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
+import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
+import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
@@ -94,7 +96,7 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
         this.collection.document(chatMessageId)
                 .get()
                 .addOnCompleteListener(result -> {
-                    if (!result.isSuccessful() || result.isCanceled()){
+                    if (!result.isSuccessful() || result.isCanceled()) {
                         return;
                     }
 
@@ -104,7 +106,7 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
                     ChatMessage message = documentSnapshot.toObject(ChatMessage.class);
                     message.setId(chatMessageId);
 
-                    hashMap.put(KEY_CHAT_OBJ , message);
+                    hashMap.put(KEY_CHAT_OBJ, message);
                     onSuccess.start(hashMap);
                 })
                 .addOnFailureListener(fail -> callOnFail(onFail, fail));
@@ -113,6 +115,39 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
     @Override
     public void getCollection(Map<String, Object> whereArgs, Call onSuccess, Call onFail) {
 
+    }
+
+    public void getCollection(@NonNull Map<Object, Object> whereArgs, CallResult<ChatMessage> onSuccess, CallResult<Exception> onFail) {
+        if (!whereArgs.containsKey(FieldPath.documentId())) {
+            if (whereArgs.isEmpty()) {
+                return;
+            }
+
+            Query referenceQuery = null;
+
+            for (Map.Entry<Object, Object> entry : whereArgs.entrySet()) {
+                if (Objects.isNull(referenceQuery)) {
+                    referenceQuery = this.collection
+                            .whereEqualTo(entry.getKey().toString(), entry.getValue());
+                }
+
+                referenceQuery = referenceQuery
+                        .whereEqualTo(entry.getKey().toString(), entry.getValue());
+            }
+
+            referenceQuery.get()
+                    .addOnSuccessListener(result -> result.toObjects(ChatMessage.class)
+                            .forEach(onSuccess::onCall)
+                    ).addOnFailureListener(onFail::onCall);
+            return;
+        }
+
+        String chatMessageId = (String) whereArgs.get(KEY_ID);
+
+        this.collection.document(chatMessageId)
+                .get()
+                .addOnSuccessListener(result -> onSuccess.onCall(result.toObject(ChatMessage.class)))
+                .addOnFailureListener(onFail::onCall);
     }
 
     @Override

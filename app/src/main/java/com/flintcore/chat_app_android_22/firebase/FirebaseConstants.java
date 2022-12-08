@@ -2,6 +2,8 @@ package com.flintcore.chat_app_android_22.firebase;
 
 public interface FirebaseConstants {
 
+    String DAT = ".";
+
     interface SharedReferences {
         String KEY_CHAT_USER_LOGGED_PREFERENCES = "userLoggedPreferences";
         String KEY_FMC_TOKEN = "token";
@@ -64,7 +66,7 @@ public interface FirebaseConstants {
         /**
          * This is the object to check if message was saw by user.
          */
-        String KEY_CONVERSATION_STATUS = "receiver";
+        String KEY_CONVERSATION_STATUS = "receiver.receiver";
         String KEY_LAST_DATE = "lastDateSent";
 
         //      Defaults
@@ -74,8 +76,10 @@ public interface FirebaseConstants {
 
     interface ConversationReceiver {
         String KEY_COLLECTION = "conversationReceiver";
+        String KEY_OBJ = "receiver";
         String KEY_ID = "conversationReceiverId";
-        String KEY_RECEIVER_ID = "receiver";
-        String KEY_VIEWED = "wasViewed";
+        String KEY_CONVERSATION_LAST_RECEIVER_ID = KEY_OBJ.concat(DAT).concat("receiver");
+        String KEY_VIEWED = KEY_OBJ.concat(DAT).concat("wasViewed");
     }
+
 }
