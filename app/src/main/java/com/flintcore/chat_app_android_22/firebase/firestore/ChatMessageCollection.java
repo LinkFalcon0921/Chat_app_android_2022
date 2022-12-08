@@ -38,6 +38,7 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
     }
 
     public ChatMessageCollection(Call onFail) {
+        super();
         try {
             this.collection = FirebaseFirestore.getInstance().collection(KEY_COLLECTION);
         } catch (Exception ex) {
@@ -45,14 +46,12 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
         }
     }
 
-    @Override
     @Deprecated
     public void getCollections(Call onSuccess, Call onFail) {
         callOnFail(onFail, new RuntimeException("Not implemented..."));
     }
 
 
-    @Override
     public void getCollections(String idReceiver, Call onSuccess, Call onFail) {
         Map<String, Object> results = getHashMap();
         this.collection
@@ -91,7 +90,6 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
     }
 
 
-    @Override
     public void getCollection(String chatMessageId, Call onSuccess, Call onFail) {
         this.collection.document(chatMessageId)
                 .get()
@@ -112,7 +110,6 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
                 .addOnFailureListener(fail -> callOnFail(onFail, fail));
     }
 
-    @Override
     public void getCollection(Map<String, Object> whereArgs, Call onSuccess, Call onFail) {
 
     }
@@ -150,7 +147,6 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
                 .addOnFailureListener(onFail::onCall);
     }
 
-    @Override
     public void addCollection(ChatMessage chatMessage, Call onSuccess, Call onFail) {
         this.collection.add(chatMessage)
                 .addOnSuccessListener(result -> {
@@ -164,36 +160,20 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
                 });
     }
 
-    @Override
-    public void editCollection(ChatMessage chatMessage, Call onSuccess, Call onFail) {
+    public void deleteCollectionById(String s, Call onSuccess, Call onFail) {
 
     }
 
-    @Override
-    public void deleteCollection(String s, Call onSuccess, Call onFail) {
-        throw throwDefaultException("No implemented");
-
-    }
-
-    @Override
-    public void deleteCollection(String[] keys, Object[] values, Call onSuccess, Call onFail) {
-        throw throwDefaultException("No implemented");
-
-    }
-
-    @Override
-    @Deprecated
     public void updateToken(String s, Call onSuccess, Call onFail) {
         throw throwDefaultException("No implemented");
 
     }
 
-    @Override
-    @Deprecated
     public void clearToken(String s, Call onSuccess, Call onFail) {
         throw throwDefaultException("No implemented");
     }
 
+//   LABEL TODO Change all
     //    Add chat listener to the app
     @Override
     public void setListener(@NonNull String sender, @NonNull String receiver, Map<String, Object> whereArgs,
@@ -215,7 +195,6 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
 
         querySender.addSnapshotListener(l);
         queryReceiver.addSnapshotListener(l);
-
     }
 
     @NonNull

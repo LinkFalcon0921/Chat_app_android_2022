@@ -1,32 +1,65 @@
 package com.flintcore.chat_app_android_22.firebase.firestore;
 
-import com.flintcore.chat_app_android_22.utilities.callback.Call;
-import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
+import com.flintcore.chat_app_android_22.firebase.queries.QueryCondition;
 import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.FieldPath;
+import com.google.firebase.firestore.Query;
 
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+
+// TODO REFACTOR ALL Firebase Connection class
+
 
 public abstract class FirebaseConnection<ID, T> {
+
+    public static final String DEFAULT_ORDER_BY_FIELD = FieldPath.documentId().toString();
+
     protected CollectionReference collection;
+    private final String DEFAULT_ORDER;
 
-    public abstract void getCollections(Call onSuccess, Call onFail);
-    public abstract void getCollections(ID id, Call onSuccess, Call onFail);
+    public FirebaseConnection() {
+        this.DEFAULT_ORDER = FirebaseConnection.DEFAULT_ORDER_BY_FIELD;
+    }
 
-    public abstract void getCollection(ID id, Call onSuccess, Call onFail);
-//    public abstract void getCollection(ID id, CallResult onSuccess, CallResult onFail);
+    public FirebaseConnection(String DEFAULT_ORDER_BY_FIELD) {
+        this.DEFAULT_ORDER = DEFAULT_ORDER_BY_FIELD;
+    }
 
-    public abstract void getCollection(Map<String, Object> whereArgs, Call onSuccess, Call onFail);
+    @SafeVarargs
+    public  final <K extends String, V extends Object & List<Object>>
+        Query getFirebaseQuery(@NotNull Collection<QueryCondition<K, V>> queries)
+    {
+        return getFirebaseQuery(queries.toArray(new QueryCondition[0]));
+    }
 
-    public abstract void addCollection(T t, Call onSuccess, Call onFail);
+    @SafeVarargs
+    public  final <K extends String, V extends Object & List<Object>>
+        Query getFirebaseQuery(@NotNull QueryCondition<K, V>... queries)
+    {
 
-    public abstract void editCollection(T t, Call onSuccess, Call onFail);
+        Query query = this.collection.orderBy(DEFAULT_ORDER);
 
-    public abstract void deleteCollection(ID id, Call onSuccess, Call onFail);
+        for (QueryCondition<K, V> condition : queries) {
+            switch (condition.getMatchType()) {
+                case IN:
+                    query = this.collection.whereIn(condition.getKey(), condition.getValue());
+                    break;
 
-    public abstract void deleteCollection(String[] keys, Object[] values, Call onSuccess, Call onFail);
+                case NOT_EQUALS:
+                    query = query.whereNotEqualTo(condition.getKey(), condition.getValue());
+                    break;
 
-    public  abstract void updateToken(ID id, Call onSuccess, Call onFail);
-    public  abstract void clearToken(ID id, Call onSuccess, Call onFail);
+                default:
+                case EQUALS:
+                    query = query.whereEqualTo(condition.getKey(), condition.getValue());
+            }
+
+        }
+
+        return query;
+    }
 }

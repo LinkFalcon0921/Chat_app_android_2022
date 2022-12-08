@@ -368,6 +368,7 @@ public class ChatSimpleActivity extends AppCompatActivity
     private void setUserReceiverAvailableListener() {
         HashMap<Object, Object> whereArgs = CollectionsHelper.getHashMap();
         whereArgs.put(FieldPath.documentId(), this.receivedUser.getId());
+        // TODO: 12/8/2022 Change this method
         this.userCollection.applyUserAvailability(whereArgs, this.userAvailabilityDefault);
     }
 
