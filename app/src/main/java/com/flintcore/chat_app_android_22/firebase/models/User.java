@@ -2,6 +2,7 @@ package com.flintcore.chat_app_android_22.firebase.models;
 
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
 import com.google.firebase.firestore.DocumentId;
+import com.google.firebase.firestore.Exclude;
 
 import java.io.Serializable;
 import java.util.Comparator;
@@ -10,18 +11,22 @@ import java.util.Objects;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+// User id of firebase Auth
+
 @Data
 public class User implements Serializable, Comparable<User>{
 
+    @DocumentId
     private String id;
     private String token;
     private String alias;
     private String image;
     private int available;
+
+    @Exclude
     private UserAccess userAccess;
 
     public User() {
-        this.userAccess = new UserAccess();
     }
 
     public String getToken() {
@@ -57,10 +62,12 @@ public class User implements Serializable, Comparable<User>{
         this.image = image;
     }
 
+    @Exclude
     public UserAccess getUserAccess() {
         return userAccess;
     }
 
+    @Exclude
     public void setUserAccess(UserAccess userAccess) {
         this.userAccess = userAccess;
     }

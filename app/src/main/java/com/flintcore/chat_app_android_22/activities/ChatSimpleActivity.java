@@ -24,6 +24,8 @@ import com.flintcore.chat_app_android_22.firebase.models.embbebed.ConversationRe
 import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
+import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
+import com.flintcore.chat_app_android_22.utilities.collections.CollectionsHelper;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 import com.flintcore.chat_app_android_22.utilities.views.DefaultConfigs;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -33,6 +35,7 @@ import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
+import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
@@ -84,7 +87,7 @@ public class ChatSimpleActivity extends AppCompatActivity
     //    Logic to receive message
     public void onEvent(QuerySnapshot result, FirebaseFirestoreException error) {
         if (Objects.nonNull(error) || Objects.isNull(result)) {
-            HashMap<String, Object> hashMap = getHashMap();
+            HashMap<String, Object> hashMap = CollectionsHelper.getHashMap();
             hashMap.put(MESSAGE, error.getMessage());
             getDefaultOnFailCall().start(hashMap);
             return;
@@ -106,6 +109,14 @@ public class ChatSimpleActivity extends AppCompatActivity
                     newChatMessage.setMessage(message);
 
                     this.chatMessages.add(newChatMessage);
+
+                case REMOVED:
+                    CallResult<ChatMessage> onChatMatches = this.chatMessages::remove;
+
+                    this.chatMessages.stream()
+                            .filter(chat -> chat.getId().equals(documentSnapshot.getId()))
+                            .findFirst()
+                            .ifPresent(onChatMatches::onCall);
             }
         }
 
@@ -128,10 +139,6 @@ public class ChatSimpleActivity extends AppCompatActivity
 
     }
 
-    private <K, V> HashMap<K, V> getHashMap() {
-        return new HashMap<>();
-    }
-
     //    Called when a recent conversation is created or updated.
     @Override
     public void onComplete(@NonNull Task<QuerySnapshot> task) {
@@ -147,6 +154,8 @@ public class ChatSimpleActivity extends AppCompatActivity
         List<DocumentSnapshot> documents = documentSnapshots.getDocuments();
 
         if (documents.isEmpty()) {
+//        Set the conversation if not exists one
+            this.actualConversation = new Conversation();
             return;
         }
 
@@ -174,6 +183,9 @@ public class ChatSimpleActivity extends AppCompatActivity
 
                     this.actualConversation = result.toObject(Conversation.class);
                     this.actualConversation.setId(result.getId());
+                    this.conversationCollection.applyCollectionListener(this::onComplete);
+
+                    this.chatAdapter.notifyDataSetChanged();
                 });
     }
 
@@ -221,7 +233,6 @@ public class ChatSimpleActivity extends AppCompatActivity
 
     private void loadChatData() {
         this.chatMessages = new TreeSet<>(Comparator.comparing(ChatMessage::getDatetime));
-
         this.chatAdapter = new ChatMessagingAdapter(getLoggedUserId(), this.chatMessages);
         this.binding.chatMessageRecycler.setAdapter(this.chatAdapter);
 
@@ -300,11 +311,9 @@ public class ChatSimpleActivity extends AppCompatActivity
         this.actualConversation.getReceiver().setReceiver(messageSent.getReceivedId());
         this.actualConversation.getReceiver().setWasViewed(false);
 
-        this.conversationCollection.addCollection(this.actualConversation, this::onSuccess);
     }
 
     private void setNewRecentConversation(ChatMessage messageSent) {
-        this.actualConversation = new Conversation();
         this.actualConversation.setLastMessageId(messageSent.getId());
         this.actualConversation.setLastDateSent(new Date());
     }
@@ -319,6 +328,7 @@ public class ChatSimpleActivity extends AppCompatActivity
     private void setLastRecentConversation(ChatMessage messageSent) {
         if (Objects.isNull(this.actualConversation)) {
             setNewRecentConversation(messageSent);
+            this.conversationCollection.addCollection(this.actualConversation, this::onSuccess);
             return;
         }
 
@@ -350,6 +360,37 @@ public class ChatSimpleActivity extends AppCompatActivity
                 "No chats recently", FAIL_GET_RESPONSE);
     }
 
+    //    Get if receiver user is available
+    private void setUserReceiverAvailableListener() {
+        HashMap<Object, Object> whereArgs = CollectionsHelper.getHashMap();
+        whereArgs.put(FieldPath.documentId(), this.receivedUser.getId());
+        this.userCollection.applyUserAvailability(whereArgs, this.userAvailabilityDefault);
+    }
+
+    //    FOR event to get availability user.
+    private final EventListener<QuerySnapshot> userAvailabilityDefault = (value, error) -> {
+        if (Objects.isNull(value) || Objects.nonNull(error)) {
+//            TODO logic to not get user availability
+            return;
+        }
+
+        List<DocumentSnapshot> documents = value.getDocuments();
+
+        documents.stream().findFirst()
+                .ifPresent(doc -> {
+                    User user = doc.toObject(User.class);
+
+                    switch (user.getAvailable()) {
+                        case UserConstants.AVAILABLE:
+                            this.binding.availableFlag.setVisibility(View.VISIBLE);
+                            break;
+                        default:
+                        case UserConstants.NOT_AVAILABLE:
+                            this.binding.availableFlag.setVisibility(View.GONE);
+                    }
+                });
+    };
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -370,40 +411,5 @@ public class ChatSimpleActivity extends AppCompatActivity
 
         this.userCollection.updateAvailable(getLoggedUserId(), UserConstants.NOT_AVAILABLE);
     }
-
-    //    Get if receiver user is available
-    private void setUserReceiverAvailableListener() {
-        HashMap<Object, Object> whereArgs = getHashMap();
-        whereArgs.put(FirebaseConstants.Users.KEY_USER_ID, this.receivedUser.getId());
-        this.userCollection.applyUserAvailability(whereArgs, this.userAvailabilityDefault);
-    }
-
-    //    FOR event to get availability user.
-    private EventListener<QuerySnapshot> userAvailabilityDefault = (value, error) -> {
-        if (Objects.isNull(value) || Objects.nonNull(error)) {
-//            TODO logic to not get user availability
-            return;
-        }
-
-        List<DocumentSnapshot> documents = value.getDocuments();
-
-        if (documents.isEmpty()) {
-            return;
-        }
-
-        documents.stream().findFirst()
-                .ifPresent(doc -> {
-                    User user = doc.toObject(User.class);
-
-                    switch (user.getAvailable()) {
-                        case UserConstants.AVAILABLE:
-                            this.binding.availableFlag.setVisibility(View.VISIBLE);
-                            break;
-                        default:
-                        case UserConstants.NOT_AVAILABLE:
-                            this.binding.availableFlag.setVisibility(View.GONE);
-                    }
-                });
-    };
 
 }

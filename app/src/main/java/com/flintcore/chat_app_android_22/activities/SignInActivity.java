@@ -3,6 +3,7 @@ package com.flintcore.chat_app_android_22.activities;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.FAIL_GET_RESPONSE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Results.MESSAGE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_ALIAS;
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_CONFIRM_PASS;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_EMAIL;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_IMAGE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_IS_SIGNED_IN;
@@ -22,11 +23,16 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.flintcore.chat_app_android_22.databinding.ActivitySignInBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
+import com.flintcore.chat_app_android_22.firebase.auth.EmailAuthentication;
 import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.firebase.models.UserConstants;
+import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
+import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
+import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
+import com.flintcore.chat_app_android_22.utilities.collections.CollectionsHelper;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 import com.flintcore.chat_app_android_22.utilities.models.generator.DocumentValidators;
 import com.flintcore.chat_app_android_22.utilities.views.DefaultConfigs;
@@ -34,12 +40,16 @@ import com.flintcore.chat_app_android_22.utilities.views.DefaultConfigs;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 public class SignInActivity extends AppCompatActivity {
+
 
     public static final String DAT_STR = ".";
     private ActivitySignInBinding binding;
     private PreferencesManager preferencesManager;
+
+    private EmailAuthentication emailAuthentication;
     private UserCollection userCollection;
     private DocumentValidators.UserValidator userValidator;
 
@@ -56,11 +66,22 @@ public class SignInActivity extends AppCompatActivity {
             startActivity(goToMainIntent());
         }
 
-        this.userCollection = UserCollection.getInstance(getOnFailFirebaseConnection());
-        this.userValidator = new DocumentValidators.UserValidator();
+        setFirebaseInstance();
 
         configurateFields();
         setListenersButtons();
+    }
+
+    private void setFirebaseInstance() {
+        this.userCollection = UserCollection.getInstance(getOnFailFirebaseConnection());
+        this.userValidator = new DocumentValidators.UserValidator();
+        this.emailAuthentication = EmailAuthentication.getInstance(getExceptionCallResultDefault());
+    }
+
+    @NonNull
+    private CallResult<Exception> getExceptionCallResultDefault() {
+        return fail -> MessagesAppGenerator
+                .showToast(getApplicationContext(), fail, FAIL_GET_RESPONSE);
     }
 
     private void configurateFields() {
@@ -82,39 +103,70 @@ public class SignInActivity extends AppCompatActivity {
     }
 
     private void signInToFirebase() {
-        Map<String, Object> values = new HashMap<>();
 
         String email = this.binding.emailTxt.getText().toString();
         String pass = this.binding.passTxt.getText().toString();
 
 //        Always create this class to login
-        values.put(KEY_EMAIL, email);
-        values.put(KEY_PASS, pass);
+        UserAccess access = new UserAccess();
+        access.setEmail(email);
+        access.setPass(pass);
 
-        Call onFail = data -> {
-            startFirebaseRequest(false);
-            getOnFailFirebaseConnection().start(data);
+        CallResult<Optional<UserAccess>> onUserFound = accessOptional -> {
+            if (!accessOptional.isPresent()) {
+                MessagesAppGenerator.showToast(getApplicationContext(),
+                        FirebaseConstants.Messages.NOT_VALID_CREEDENTIALS, FAIL_GET_RESPONSE);
+                return;
+            }
+
+            CallResult<Exception> onFailGetUser =  fail ->
+                    MessagesAppGenerator.showToast(getApplicationContext(), fail.getMessage(), FAIL_GET_RESPONSE);
+
+
+            UserAccess userAccess = accessOptional.get();
+
+            this.userCollection.getCollection(
+                    userAccess.getId(),
+                    user -> {
+                        user.setUserAccess(access);
+
+                        savePreferences(user);
+                        toMainIntentCall();
+                    },
+                   onFailGetUser);
+
         };
 
-        Call onSuccess = data -> {
-            Call onSuccessLogged = loggedData -> {
-                startFirebaseRequest(true);
-                savePreferences(loggedData);
+        CallResult<Exception> onFailAuth = getExceptionCallResultDefault();
 
-                startActivity(goToMainIntent());
-            };
+        this.emailAuthentication
+                .authenticateSignIn(access, onUserFound, onFailAuth);
 
-            data.clear();
-            data.put(KEY_LOGIN_OBJ.concat(DAT_STR).concat(KEY_EMAIL), email);
-            data.put(KEY_LOGIN_OBJ.concat(DAT_STR).concat(KEY_PASS), Encryptions.encrypt(pass));
-
-            this.userCollection
-                    .getCollection(data, onSuccessLogged, onFail);
-        };
-
-        this.userValidator.validateCredentials(values, onSuccess, onFail);
     }
 
+    private void toMainIntentCall() {
+        startActivity(goToMainIntent());
+    }
+
+    private void savePreferences(User user) {
+        this.preferencesManager.put(KEY_IS_SIGNED_IN,
+                true);
+
+        this.preferencesManager.put(KEY_USER_ID,
+                user.getId());
+
+        this.userCollection
+                .updateAvailable(user.getId(), UserConstants.AVAILABLE);
+
+        this.preferencesManager.put(KEY_ALIAS,
+                user.getAlias());
+
+        this.preferencesManager.put(KEY_IMAGE,
+                user.getImage());
+    }
+
+
+    @Deprecated
     private void savePreferences(Map<String, Object> data) {
         this.preferencesManager.put(KEY_IS_SIGNED_IN,
                 true);

@@ -13,6 +13,7 @@ import androidx.annotation.NonNull;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
+import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldPath;
@@ -86,7 +87,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
     @NonNull
     private User filterAllUserDocumentData(DocumentSnapshot document) {
         User user = document.toObject(User.class);
-        user.setId(document.getId());
+//        user.setId(document.getId());
         return user;
     }
 
@@ -167,6 +168,20 @@ public class UserCollection extends FirebaseConnection<String, User> {
                 }).addOnFailureListener(fail -> callOnFail(onFail, fail));
     }
 
+    public void getCollection(String id, CallResult<User> onSuccess, CallResult<Exception> onFail){
+        this.collection
+                .document(id)
+                .get()
+                .addOnCompleteListener(result ->{
+                    if (!result.isSuccessful() || !result.getResult().exists()) {
+                        onFail.onCall(throwsDefaultException("User not found!"));
+                    }
+
+                    User user = result.getResult().toObject(User.class);
+                    onSuccess.onCall(user);
+                }).addOnFailureListener(onFail::onCall);
+    }
+
     @Override
     public void getCollection(String userId, Call onSuccess, Call onFail) {
         this.collection.document(userId)
@@ -200,6 +215,21 @@ public class UserCollection extends FirebaseConnection<String, User> {
                     onSuccess.start(data);
                 })
                 .addOnFailureListener(fail -> callOnFail(onFail, fail));
+    }
+
+    public void addCollectionWithId(User user, CallResult<User> onSuccess,
+                                    CallResult<Exception> onFail) {
+        Map<String, Object> data = new HashMap<>();
+
+//        Add methods for auto id
+        this.collection.document(user.getId())
+                .set(user)
+                .addOnSuccessListener(result -> {
+
+                    data.put(KEY_USER_OBJ, user);
+                    onSuccess.onCall(user);
+                })
+                .addOnFailureListener(onFail::onCall);
     }
 
     @Override
@@ -260,7 +290,7 @@ public class UserCollection extends FirebaseConnection<String, User> {
 
         for (Map.Entry<Object, Object> entry : whereArgs.entrySet()) {
             if (Objects.isNull(referenceQuery)){
-                this.collection
+                referenceQuery = this.collection
                         .whereEqualTo(entry.getKey().toString(), entry.getValue().toString());
                 continue;
             }

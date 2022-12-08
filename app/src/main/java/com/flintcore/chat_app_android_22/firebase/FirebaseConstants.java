@@ -4,7 +4,7 @@ public interface FirebaseConstants {
 
     interface SharedReferences {
         String KEY_CHAT_USER_LOGGED_PREFERENCES = "userLoggedPreferences";
-        String KEY_FMC_TOKEN = "FMC_LOGGED";
+        String KEY_FMC_TOKEN = "token";
     }
 
     interface Messages {
@@ -12,6 +12,8 @@ public interface FirebaseConstants {
         String NO_USERS_AVAILABLE = "No users available";
         String NO_CHATS_RECENT = "No chat recently";
         String NO_USER = "No user present";
+        String NOT_VALID_CREEDENTIALS = "Not valid creedentials. \nUse another one.";
+        String CREDENTIALS_DOES_NOT_EXISTS = "User credentials does not exists";
     }
 
     interface Results {
@@ -70,7 +72,7 @@ public interface FirebaseConstants {
         String KEY_CONVERSATION_OBJ = "conversationObj";
     }
 
-    interface ConversationReceiver{
+    interface ConversationReceiver {
         String KEY_COLLECTION = "conversationReceiver";
         String KEY_ID = "conversationReceiverId";
         String KEY_RECEIVER_ID = "receiver";

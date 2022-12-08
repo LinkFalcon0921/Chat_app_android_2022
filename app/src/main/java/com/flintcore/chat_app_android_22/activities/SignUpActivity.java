@@ -27,12 +27,16 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.flintcore.chat_app_android_22.databinding.ActivitySignUpBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
+import com.flintcore.chat_app_android_22.firebase.auth.EmailAuthentication;
 import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.firebase.models.UserConstants;
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
+import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
+import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
+import com.flintcore.chat_app_android_22.utilities.collections.CollectionsHelper;
 import com.flintcore.chat_app_android_22.utilities.models.generator.DocumentValidators;
 import com.flintcore.chat_app_android_22.utilities.views.DefaultConfigs;
 import com.makeramen.roundedimageview.RoundedDrawable;
@@ -48,6 +52,8 @@ public class SignUpActivity extends AppCompatActivity {
 
     private ActivitySignUpBinding binding;
     private PreferencesManager preferencesManager;
+
+    private EmailAuthentication emailAuthentication;
     private UserCollection userCollection;
     private DocumentValidators.UserValidator userValidator;
 
@@ -90,11 +96,28 @@ public class SignUpActivity extends AppCompatActivity {
             startActivity(goToMainIntent());
         }
 
-        this.userCollection = UserCollection.getInstance(getOnFailFirebaseConnection());
-        this.userValidator = new DocumentValidators.UserValidator();
+        setFirestoreInstances();
 
         configurateFields();
         setListenersButtons();
+
+    }
+
+    private void setFirestoreInstances() {
+        this.userCollection = UserCollection.getInstance(getOnFailFirebaseConnection());
+
+        this.userValidator = new DocumentValidators.UserValidator();
+
+        this.emailAuthentication = EmailAuthentication
+                .getInstance(getExceptionCallResultDefault());
+    }
+
+    @NonNull
+    private CallResult<Exception> getExceptionCallResultDefault() {
+        return fail -> {
+            startFirebaseRequest(false);
+            MessagesAppGenerator.showToast(getApplicationContext(), fail, FAIL_GET_RESPONSE);
+        };
 
     }
 
@@ -142,9 +165,9 @@ public class SignUpActivity extends AppCompatActivity {
     }
 
     private void signUpToFirestore() {
-        Map<String, Object> values = new HashMap<>();
 
         startFirebaseRequest(true);
+
         Bitmap imageBitmap = null;
         Drawable drawable = this.binding.imagePreview.getDrawable();
 
@@ -164,38 +187,48 @@ public class SignUpActivity extends AppCompatActivity {
         access.setEmail(email);
         access.setPass(pass);
 
-        // Fill values in map
-        values.put(KEY_IMAGE, imageBitmap);
+        User newUser = new User();
+        newUser.setAlias(alias);
+        newUser.setUserAccess(access);
+        HashMap<String, Object> values = CollectionsHelper.getHashMap();
 
-        values.put(FirebaseConstants.Users.KEY_ALIAS, alias);
-
-        values.put(FirebaseConstants.Users.KEY_LOGIN_OBJ, access);
-
+        // Fill values in map to validate
         values.put(KEY_CONFIRM_PASS, conf_pass);
 
-        Call onFailDefault = data -> {
-            startFirebaseRequest(false);
-            String message = data.get(MESSAGE).toString();
-            showMessage(message);
-        };
+//        When the user is validated
+        CallResult<Optional<User>> onValidateUser = userValidated -> {
+            if (!userValidated.isPresent()) {
+                return;
+            }
+            User user = userValidated.get();
+//            When user credentials is valid
+            CallResult<Optional<UserAccess>> onValidUserAccess = accessValidated -> {
+                if (!accessValidated.isPresent()) {
+                    return;
+                }
 
-        Optional<User> optionalUser = userValidator.validateUserInfo(values,
-                onFailDefault);
+                user.setId(accessValidated.get().getId());
+                CallResult<User> onSuccess = userWithAccess -> {
+                    savePreferences(userWithAccess);
+                    startActivity(goToMainIntent());
+                };
 
-        if (optionalUser.isPresent()) {
-            User user = optionalUser.get();
+                CallResult<Exception> onFail = getExceptionCallResultDefault();
 
-            Call onSuccessConnection = data -> {
-                savePreferences(data);
-
-                startActivity(goToMainIntent());
+                // Insert the user
+                this.userCollection.addCollectionWithId(user, onSuccess, onFail);
             };
 
-            this.userCollection.addCollection(user, onSuccessConnection, onFailDefault);
-        }
+//            Add email credentials
+            this.emailAuthentication.createUserInstance(access, onValidUserAccess, getExceptionCallResultDefault());
+        };
 
+        CallResult<Exception> onFailValidation = getExceptionCallResultDefault();
+
+        this.userValidator.validateUser(imageBitmap, newUser, values, onValidateUser, onFailValidation);
     }
 
+    @Deprecated
     private void savePreferences(Map<String, Object> data) {
         this.preferencesManager.put(KEY_IS_SIGNED_IN,
                 true);
@@ -206,7 +239,24 @@ public class SignUpActivity extends AppCompatActivity {
                 user.getId());
 
         this.userCollection
-        .updateAvailable(user.getId(), UserConstants.AVAILABLE);
+                .updateAvailable(user.getId(), UserConstants.AVAILABLE);
+
+        this.preferencesManager.put(KEY_ALIAS,
+                user.getAlias());
+
+        this.preferencesManager.put(KEY_IMAGE,
+                user.getImage());
+    }
+
+    private void savePreferences(User user) {
+        this.preferencesManager.put(KEY_IS_SIGNED_IN,
+                true);
+
+        this.preferencesManager.put(KEY_USER_ID,
+                user.getId());
+
+        this.userCollection
+                .updateAvailable(user.getId(), UserConstants.AVAILABLE);
 
         this.preferencesManager.put(KEY_ALIAS,
                 user.getAlias());

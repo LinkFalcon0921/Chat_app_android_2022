@@ -228,20 +228,22 @@ public class MainActivity extends AppCompatActivity
                     String receiver = userId.equals(message.getSenderId()) ?
                             message.getReceivedId() : message.getSenderId();
 
+//                    Call to add conversations
+                    Call userCallResult = dataUser -> {
+                        User user = (User) dataUser.get(KEY_USER_OBJ);
+                        if (Objects.isNull(user)) {
+                            return;
+                        }
+
+                        conversation.setLastSenderId(receiver);
+                        conversation.setSenderName(user.getAlias());
+                        conversation.setSenderImage(user.getImage());
+
+                        this.conversations.add(conversation);
+                        addInsertedConversation(conversation);
+                    };
                     this.userCollection.getCollection(receiver,
-                            dataUser -> {
-                                User user = (User) dataUser.get(FirebaseConstants.Users.KEY_USER_OBJ);
-                                if (Objects.isNull(user)) {
-                                    return;
-                                }
-
-                                conversation.setLastSenderId(receiver);
-                                conversation.setSenderName(user.getAlias());
-                                conversation.setSenderImage(user.getImage());
-
-                                this.conversations.add(conversation);
-                                addInsertedConversation(conversation);
-                            }, fail -> endOnNoFoundRecentMessages(NO_CHATS_RECENT));
+                            userCallResult, fail -> endOnNoFoundRecentMessages(NO_CHATS_RECENT));
 
                 }, getOnFailFirebaseConnection());
     }
@@ -261,6 +263,7 @@ public class MainActivity extends AppCompatActivity
         this.binding.recentConversationsRecycler.setAdapter(this.recentMessageAdapter);
     }
 
+//    Listen recents messages in the app.
     private void listenRecentMessages() {
         final OnCompleteListener<QuerySnapshot> getChatsRelated = task -> {
             if (!task.isComplete() || !task.isSuccessful()) {

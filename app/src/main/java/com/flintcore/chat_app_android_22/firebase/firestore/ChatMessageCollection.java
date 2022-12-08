@@ -118,13 +118,8 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
     @Override
     public void addCollection(ChatMessage chatMessage, Call onSuccess, Call onFail) {
         this.collection.add(chatMessage)
-                .addOnCompleteListener(result -> {
-                    if (result.isCanceled() || !result.isSuccessful()) {
-                        callOnFail(onFail, throwDefaultException("Unable to send"));
-                        return;
-                    }
-                    DocumentReference document = result.getResult();
-                    chatMessage.setId(document.getId());
+                .addOnSuccessListener(result -> {
+                    chatMessage.setId(result.getId());
 
                     onSuccess.start(null);
                 })

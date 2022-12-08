@@ -1,6 +1,7 @@
 package com.flintcore.chat_app_android_22.firebase.firestore;
 
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
+import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.google.firebase.firestore.CollectionReference;
 
 import java.util.Map;
@@ -14,6 +15,7 @@ public abstract class FirebaseConnection<ID, T> {
     public abstract void getCollections(ID id, Call onSuccess, Call onFail);
 
     public abstract void getCollection(ID id, Call onSuccess, Call onFail);
+//    public abstract void getCollection(ID id, CallResult onSuccess, CallResult onFail);
 
     public abstract void getCollection(Map<String, Object> whereArgs, Call onSuccess, Call onFail);
 

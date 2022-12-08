@@ -10,12 +10,14 @@ import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users
 import android.graphics.Bitmap;
 import android.util.Patterns;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
+import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 
 import java.io.ByteArrayOutputStream;
@@ -28,6 +30,99 @@ public abstract class DocumentValidators {
 
     public static class UserValidator {
         public UserValidator() {
+        }
+
+        public void validateImage(Bitmap image, CallResult<Exception> exCallMessage) throws Exception {
+
+            if (Objects.isNull(image)) {
+                throw getException("Select a image");
+            }
+
+        }
+
+        public void validateUser(Bitmap image, User user,
+                                           Map<String, Object> additionalFields,
+                                           @NonNull CallResult<Optional<User>> onCompleteValidation,
+                                           @NonNull CallResult<Exception> onFailMessageCall) {
+
+            try {
+                if (Objects.isNull(user)) {
+                    throw getException("Fill the form.");
+                }
+
+                validateImage(image, onFailMessageCall);
+                user.setImage(encodeImage(image));
+
+                this.validateUser(user, additionalFields, onCompleteValidation, onFailMessageCall);
+
+            } catch (Exception e) {
+                onFailMessageCall.onCall(e);
+            }
+
+
+        }
+
+        public void validateUserCredentials(UserAccess userAccess,
+                                 Map<String, Object> additionalFields) throws Exception{
+            try {
+                String email = userAccess.getEmail().trim();
+
+                if (email.isEmpty()) {
+                    throw getException("Fill user email");
+                }
+                userAccess.setEmail(email);
+
+                String pass = userAccess.getPass().trim();
+
+                if (pass.isEmpty()) {
+                    throw getException("Fill user pass");
+                }
+
+                if (pass.length() < 5){
+                    throw getException("For security:\nPassword must be larger.");
+                }
+
+                Object confirmPass = additionalFields.getOrDefault(KEY_CONFIRM_PASS, "");
+                if (!Objects.equals(pass, confirmPass)){
+                    throw getException("Passwords must be equals");
+                }
+
+                userAccess.setPass(pass);
+            } catch (Exception e) {
+                throw e;
+            }
+
+        }
+
+        public void validateUser(User user,
+                                           Map<String, Object> additionalFields,
+                                           @NonNull CallResult<Optional<User>> onCompleteValidation,
+                                           @NonNull CallResult<Exception> onFailMessageCall) {
+
+            try {
+                if (Objects.isNull(user)) {
+                    throw getException("Fill the form.");
+                }
+
+                String alias = user.getAlias().trim();
+                if (alias.isEmpty()) {
+                    throw getException("Fill alias field");
+                }
+                user.setAlias(alias);
+
+                UserAccess userAccess = user.getUserAccess();
+                this.validateUserCredentials(userAccess, additionalFields);
+
+                onCompleteValidation.onCall(Optional.of(user));
+
+            } catch (Exception e) {
+                onFailMessageCall.onCall(e);
+            }
+
+        }
+
+        private Exception getException(String message) {
+            return new RuntimeException(message);
         }
 
         public Optional<User> validateUserInfo(Map<String, Object> values, Call onFail) {

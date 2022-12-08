@@ -61,9 +61,14 @@ dependencies {
 //    firestore
     implementation group: 'com.google.firebase', name: 'firebase-firestore', version: '24.4.1'
 
+//    firebase auth
+    implementation platform('com.google.firebase:firebase-bom:31.1.0')
+
+    // When using the BoM, you don't specify versions in Firebase library dependencies
+    implementation 'com.google.firebase:firebase-auth'
+
 //    Multidex
     implementation group: 'androidx.multidex', name: 'multidex', version: '2.0.1'
-
 
 
 }

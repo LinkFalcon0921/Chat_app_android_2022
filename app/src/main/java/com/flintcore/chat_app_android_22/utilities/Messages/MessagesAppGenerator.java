@@ -15,4 +15,8 @@ public class MessagesAppGenerator {
         }
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
     }
+
+    public static void showToast(Context context, @NonNull Exception exception, @NonNull String failGetResponse) {
+       showToast(context, exception.getMessage(), failGetResponse);
+    }
 }
