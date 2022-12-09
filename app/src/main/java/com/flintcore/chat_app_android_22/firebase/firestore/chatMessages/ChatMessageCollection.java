@@ -1,14 +1,16 @@
-package com.flintcore.chat_app_android_22.firebase.firestore;
+package com.flintcore.chat_app_android_22.firebase.firestore.chatMessages;
 
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.ChatMessages.*;
 
 import androidx.annotation.NonNull;
 
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
+import com.flintcore.chat_app_android_22.firebase.firestore.FirebaseConnection;
 import com.flintcore.chat_app_android_22.firebase.models.ChatMessage;
+import com.flintcore.chat_app_android_22.firebase.queries.QueryCondition;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
-import com.google.firebase.firestore.DocumentReference;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldPath;
@@ -22,7 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class ChatMessageCollection extends FirebaseConnection<String, ChatMessage> implements ChatListener<QuerySnapshot, String> {
+public class ChatMessageCollection extends FirebaseConnection
+        implements IChatMessageCollection ,ChatListener<QuerySnapshot, String> {
 
     protected static final String NO_CHATS_RECENTLY = "No chats recently";
     protected static final String UNABLE_TO_CONNECT_TO_THE_DATABASE = "Unable to connect to the database";
@@ -89,6 +92,29 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
                 .addOnFailureListener(fail -> callOnFail(onFail, fail));
     }
 
+    @Override
+    public <K extends String, V> void getCollectionById(@NonNull ChatMessage chatMessage,
+                                                        @NonNull List<QueryCondition<K, V>> whereConditions,
+                                                        @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener, CallResult<Exception> onFailListener) {
+        this.getFirebaseQueryWithId(chatMessage.getId(), whereConditions)
+                .get()
+                .addOnCompleteListener(onCompleteListener::onCall)
+                .addOnFailureListener(onFailListener::onCall);
+    }
+
+    @Override
+    public <K extends String, V> void getCollectionById(@NonNull ChatMessage chatMessage,
+                                                        @NonNull CallResult<Task<DocumentSnapshot>> onCompleteListener,
+                                                        CallResult<Exception> onFailListener) {
+        this.collection.document(chatMessage.getId())
+                .get()
+                .addOnCompleteListener(onCompleteListener::onCall)
+                .addOnFailureListener(onFailListener::onCall);
+    }
+
+    //    TODO REPLACE AND DELETE
+
+
 
     public void getCollection(String chatMessageId, Call onSuccess, Call onFail) {
         this.collection.document(chatMessageId)
@@ -108,10 +134,6 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
                     onSuccess.start(hashMap);
                 })
                 .addOnFailureListener(fail -> callOnFail(onFail, fail));
-    }
-
-    public void getCollection(Map<String, Object> whereArgs, Call onSuccess, Call onFail) {
-
     }
 
     public void getCollection(@NonNull Map<Object, Object> whereArgs, CallResult<ChatMessage> onSuccess, CallResult<Exception> onFail) {
@@ -147,6 +169,22 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
                 .addOnFailureListener(onFail::onCall);
     }
 
+
+    @Override
+    public <K extends String, V>
+    void addCollectionById(@NonNull ChatMessage chatMessage,
+                           @NonNull List<QueryCondition<K, V>> whereConditions,
+                           @NonNull CallResult<Void> onSuccess, CallResult<Exception> onFailListener) {
+
+        this.collection.document(chatMessage.getId())
+                .set(chatMessage)
+                .addOnSuccessListener(onSuccess::onCall)
+                .addOnFailureListener(onFailListener::onCall);
+
+    }
+
+//    TODO REPLACE AND DELETE
+
     public void addCollection(ChatMessage chatMessage, Call onSuccess, Call onFail) {
         this.collection.add(chatMessage)
                 .addOnSuccessListener(result -> {
@@ -158,19 +196,6 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
                     fail = new RuntimeException(FirebaseConstants.Messages.FAIL_GET_RESPONSE);
                     callOnFail(onFail, fail);
                 });
-    }
-
-    public void deleteCollectionById(String s, Call onSuccess, Call onFail) {
-
-    }
-
-    public void updateToken(String s, Call onSuccess, Call onFail) {
-        throw throwDefaultException("No implemented");
-
-    }
-
-    public void clearToken(String s, Call onSuccess, Call onFail) {
-        throw throwDefaultException("No implemented");
     }
 
 //   LABEL TODO Change all
@@ -218,5 +243,22 @@ public class ChatMessageCollection extends FirebaseConnection<String, ChatMessag
         ChatMessage message = doc.toObject(ChatMessage.class);
         message.setId(doc.getId());
         return message;
+    }
+
+//    Label methods to implement
+
+
+
+    @Override
+    public <K extends String, V> void getCollections(@NonNull List<QueryCondition<K, V>> whereConditions, @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener, CallResult<Exception> onFailListener) {
+
+    }
+
+    @Override
+    public <K extends String, V> void deleteCollection(@NonNull ChatMessage chatMessage, @NonNull List<QueryCondition<K, V>> whereConditions, @NonNull CallResult<Task<Void>> onCompleteListener, CallResult<Exception> onFailListener) {
+        this.collection.document(chatMessage.getId())
+                .delete()
+                .addOnCompleteListener(onCompleteListener::onCall)
+                .addOnFailureListener(onFailListener::onCall);
     }
 }

@@ -3,6 +3,10 @@ package com.flintcore.chat_app_android_22.utilities;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
 public class PreferencesManager {
     public static final String DEFAULT_STRING = "Empty";
 
@@ -26,6 +30,10 @@ public class PreferencesManager {
 
     public boolean contains(String key){
         return this.sharedPreferences.contains(key);
+    }
+
+    public boolean contains(Collection<String> keys){
+        return keys.stream().allMatch(this::contains);
     }
 
     public boolean getBoolean(String key) {

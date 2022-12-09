@@ -25,7 +25,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.flintcore.chat_app_android_22.databinding.ActivitySignUpBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.auth.EmailAuthentication;
-import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
+import com.flintcore.chat_app_android_22.firebase.firestore.users.UserCollection;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.firebase.models.UserConstants;
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;

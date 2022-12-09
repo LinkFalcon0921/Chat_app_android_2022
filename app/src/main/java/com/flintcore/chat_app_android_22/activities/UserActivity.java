@@ -14,7 +14,7 @@ import com.flintcore.chat_app_android_22.adapters.RecyclerUserView;
 import com.flintcore.chat_app_android_22.databinding.ActivityUserBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.auth.EmailAuthentication;
-import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
+import com.flintcore.chat_app_android_22.firebase.firestore.users.UserCollection;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.listeners.OnRecyclerItemListener;
 import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator;
@@ -22,9 +22,7 @@ import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.Objects;
 
 

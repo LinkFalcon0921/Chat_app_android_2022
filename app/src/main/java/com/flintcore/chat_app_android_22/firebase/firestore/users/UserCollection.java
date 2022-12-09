@@ -1,4 +1,4 @@
-package com.flintcore.chat_app_android_22.firebase.firestore;
+package com.flintcore.chat_app_android_22.firebase.firestore.users;
 
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.NO_USER;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.SharedReferences.KEY_FMC_TOKEN;
@@ -9,7 +9,7 @@ import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users
 import androidx.annotation.NonNull;
 
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
-import com.flintcore.chat_app_android_22.firebase.firestore.users.IUserCollection;
+import com.flintcore.chat_app_android_22.firebase.firestore.FirebaseConnection;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.firebase.queries.QueryCondition;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
@@ -32,11 +32,8 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 
-public class UserCollection extends FirebaseConnection<String, User> implements IUserCollection<Exception> {
+public class UserCollection extends FirebaseConnection implements IUserCollection<User> {
 
-    public static final String DEFAULT_MESSAGE_UNABLE_TOKEN_UPDATE = "Unable to sign out." +
-            "\nCheck your internet connection";
-    public static final FieldPath DOCUMENT_ID = FieldPath.documentId();
     private static UserCollection instance;
 
     private UserCollection(Call onFail) {
@@ -161,6 +158,17 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
     public <K extends String, V>
     void getCollectionById(@NonNull User user,
                            @NonNull List<QueryCondition<K, V>> whereConditions,
+                           @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener,
+                           CallResult<Exception> onFailListener) {
+
+        this.getFirebaseQueryWithId(user.getId(), whereConditions)
+                .get()
+                .addOnCompleteListener(onCompleteListener::onCall)
+                .addOnFailureListener(onFailListener::onCall);
+    }
+
+    public <K extends String, V>
+    void getCollectionById(@NonNull User user,
                            @NonNull CallResult<Task<DocumentSnapshot>> onCompleteListener,
                            CallResult<Exception> onFailListener) {
 
@@ -194,11 +202,11 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
     @Override
     public <K extends String, V extends Object>
     void addCollectionById(@NonNull User user, @NonNull List<QueryCondition<K, V>> whereConditions,
-                           @NonNull CallResult<Void> onCompleteListener, CallResult<Exception> onFailListener) {
+                           @NonNull CallResult<Void> onSuccess, CallResult<Exception> onFailListener) {
 
         this.collection.document(user.getId())
                 .set(user)
-                .addOnSuccessListener(onCompleteListener::onCall)
+                .addOnSuccessListener(onSuccess::onCall)
                 .addOnFailureListener(onFailListener::onCall);
 
     }
@@ -219,9 +227,28 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
                 });
     }
 
+    /**
+     * Set null to delete.
+     */
+    @Override
+    public void clearToken(User user, CallResult<Task<Void>> onCompleteListener,
+                           CallResult<Exception> onFailListener) {
+
+        FirebaseMessaging.getInstance()
+                .deleteToken()
+                .addOnCompleteListener(onCompleteListener::onCall)
+                .addOnFailureListener(onFailListener::onCall);
+
+        Object value = Objects.isNull(user.getToken()) ?
+                FieldValue.delete() : user.getToken();
+
+        this.collection.document(user.getId())
+                .update(KEY_FMC_TOKEN, value);
+    }
+
     @Override
     public <K extends String, V extends Object>
-    void updateToken(@NonNull User user, @NonNull List<QueryCondition<K, V>> whereConditions,
+    void appendToken(@NonNull User user,
                      @NonNull CallResult<String> onCompleteListener, CallResult<Exception> onFailListener) {
 
         FirebaseMessaging.getInstance().getToken()
@@ -275,18 +302,12 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
                            @NonNull EventListener<QuerySnapshot> l,
                            CallResult<Exception> onFailListener) {
 
-        getQueryWithUserId(user.getId(), whereConditions)
+        this.getFirebaseQueryWithId(user.getId(), whereConditions)
                 .addSnapshotListener(l);
 
     }
 
     //    label Method to get Query with user id isntance
-    @NonNull
-    private <K extends String, V extends Object>
-    Query getQueryWithUserId(String userId, @NonNull List<QueryCondition<K, V>> whereConditions) {
-        return this.getFirebaseQuery(whereConditions)
-                .whereEqualTo(DOCUMENT_ID, userId);
-    }
 
 
     // TODO: REPLACE AND DELETE
@@ -329,8 +350,15 @@ public class UserCollection extends FirebaseConnection<String, User> implements 
 
     @Override
     public <K extends String, V extends Object>
-    void deleteCollection(@NonNull User user, @NonNull List<QueryCondition<K, V>> whereConditions,
-                          @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener, CallResult<Exception> onFailListener) {
+    void deleteCollection(@NonNull User user,
+                          @NonNull List<QueryCondition<K, V>> whereConditions,
+                          @NonNull CallResult<Task<Void>> onCompleteListener,
+                          CallResult<Exception> onFailListener) {
+
+        this.collection.document(user.getId())
+                .delete()
+                .addOnCompleteListener(onCompleteListener::onCall)
+                .addOnFailureListener(onFailListener::onCall);
 
     }
 

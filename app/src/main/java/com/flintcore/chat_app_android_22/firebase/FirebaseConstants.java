@@ -16,6 +16,9 @@ public interface FirebaseConstants {
         String NO_USER = "No user present";
         String NOT_VALID_CREEDENTIALS = "Not valid creedentials. \nUse another one.";
         String CREDENTIALS_DOES_NOT_EXISTS = "User credentials does not exists";
+        String NOT_FOUND_DATA_USER_REGISTERED = "Error getting data.\nLogging out...";
+        String SIGN_IN_SUCCESSFUL = "Sign in successfully!";
+        String SIGN_OUT_SUCCESSFUL = "Sign out successfully!";
     }
 
     interface Results {

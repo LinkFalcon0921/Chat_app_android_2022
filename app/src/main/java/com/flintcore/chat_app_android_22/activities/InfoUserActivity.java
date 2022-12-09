@@ -9,7 +9,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.flintcore.chat_app_android_22.databinding.ActivityInfoUserBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users;
-import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
+import com.flintcore.chat_app_android_22.firebase.firestore.users.UserCollection;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator;
 import com.flintcore.chat_app_android_22.utilities.callback.CallResult;

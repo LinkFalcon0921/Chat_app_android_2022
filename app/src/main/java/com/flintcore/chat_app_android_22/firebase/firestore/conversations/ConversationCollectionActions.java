@@ -1,4 +1,4 @@
-package com.flintcore.chat_app_android_22.firebase.firestore;
+package com.flintcore.chat_app_android_22.firebase.firestore.conversations;
 
 import androidx.annotation.NonNull;
 
@@ -14,6 +14,7 @@ import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.Map;
 
+@Deprecated
 public interface ConversationCollectionActions<ID> {
 
     void getCollection(ChatMessage conversation, OnCompleteListener<QuerySnapshot> onSuccess,

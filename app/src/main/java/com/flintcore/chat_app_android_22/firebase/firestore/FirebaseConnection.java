@@ -15,9 +15,11 @@ import java.util.List;
 
 // TODO REFACTOR ALL Firebase Connection class
 
-
-public abstract class FirebaseConnection<ID, T> {
-
+/**Class necessaries to handle specific fields in the database.
+ * <br/> - FieldPath and FieldValue
+ * */
+public abstract class FirebaseConnection {
+    public static final FieldPath DOCUMENT_ID = FieldPath.documentId();
     public static final String DEFAULT_ORDER_BY_FIELD = FieldPath.documentId().toString();
 
     protected CollectionReference collection;
@@ -55,6 +57,13 @@ public abstract class FirebaseConnection<ID, T> {
         }
 
         return query;
+    }
+
+    @NonNull
+    protected <K extends String, V extends Object>
+    Query getFirebaseQueryWithId(String userId, @NonNull List<QueryCondition<K, V>> whereConditions) {
+        return this.getFirebaseQuery(whereConditions)
+                .whereEqualTo(DOCUMENT_ID, userId);
     }
 
     @SafeVarargs

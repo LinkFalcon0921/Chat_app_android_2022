@@ -19,7 +19,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.flintcore.chat_app_android_22.databinding.ActivitySignInBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.auth.EmailAuthentication;
-import com.flintcore.chat_app_android_22.firebase.firestore.UserCollection;
+import com.flintcore.chat_app_android_22.firebase.firestore.users.UserCollection;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.firebase.models.UserConstants;
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.UserAccess;
@@ -33,6 +33,7 @@ import com.flintcore.chat_app_android_22.utilities.models.generator.DocumentVali
 import com.flintcore.chat_app_android_22.utilities.views.DefaultConfigs;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.List;
 import java.util.Objects;
@@ -134,13 +135,19 @@ public class SignInActivity extends AppCompatActivity {
                 List<QueryCondition<String, Object>> whereConditions = CollectionsHelper.getArrayList();
 
 //                Call for get the data of user.
-                CallResult<Task<DocumentSnapshot>> callOnGetUser = userSnapshot -> {
+                CallResult<Task<QuerySnapshot>> callOnGetUser = userSnapshot -> {
                     if (!userSnapshot.isComplete() || !userSnapshot.isSuccessful()) {
                         callOnFailUserInfo(onFailGetUser);
                         return;
                     }
 
-                    User userFound = userSnapshot.getResult().toObject(User.class);
+                    List<DocumentSnapshot> documents = userSnapshot.getResult().getDocuments();
+                    if (documents.isEmpty()) {
+                        callOnFailUserInfo(onFailGetUser);
+                        return;
+                    }
+
+                    User userFound = documents.get(0).toObject(User.class);
 
                     if (Objects.isNull(userFound)) {
                         callOnFailUserInfo(onFailGetUser);
