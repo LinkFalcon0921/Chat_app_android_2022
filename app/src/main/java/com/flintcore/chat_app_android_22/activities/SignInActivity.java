@@ -3,6 +3,7 @@ package com.flintcore.chat_app_android_22.activities;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.FAIL_GET_RESPONSE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Results.MESSAGE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_ALIAS;
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_EMAIL;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_IMAGE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_IS_SIGNED_IN;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Users.KEY_USER_ID;
@@ -196,6 +197,9 @@ public class SignInActivity extends AppCompatActivity {
 
         this.preferencesManager.put(KEY_ALIAS,
                 user.getAlias());
+
+        this.preferencesManager.put(KEY_EMAIL,
+                user.getUserAccess().getEmail());
 
         this.preferencesManager.put(KEY_IMAGE,
                 user.getImage());

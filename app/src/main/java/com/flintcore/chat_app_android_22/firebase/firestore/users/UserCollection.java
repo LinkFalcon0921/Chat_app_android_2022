@@ -145,10 +145,19 @@ public class UserCollection extends FirebaseConnection implements IUserCollectio
                            @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener,
                            CallResult<Exception> onFailListener) {
 
-        this.getFirebaseQueryWithId(user.getId(), whereConditions)
+        if (Objects.nonNull(user.getId())) {
+            this.getFirebaseQueryWithId(user.getId(), whereConditions)
+                    .get()
+                    .addOnCompleteListener(onCompleteListener::onCall)
+                    .addOnFailureListener(onFailListener::onCall);
+            return;
+        }
+
+        this.getFirebaseQuery(whereConditions)
                 .get()
                 .addOnCompleteListener(onCompleteListener::onCall)
                 .addOnFailureListener(onFailListener::onCall);
+
     }
 
     public <K extends String, V>

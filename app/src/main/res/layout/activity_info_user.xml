@@ -36,6 +36,7 @@
             android:layout_marginEnd="@dimen/_12sdp"
             android:backgroundTint="@color/gray_100"
             android:padding="@dimen/_4sdp"
+            android:visibility="gone"
             android:src="@drawable/ic_delete_simple"
             android:contentDescription="@string/delete_user_msg"
             app:layout_constraintEnd_toEndOf="parent"

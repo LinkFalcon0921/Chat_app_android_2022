@@ -37,6 +37,7 @@
             android:layout_marginHorizontal="@dimen/_12sdp"
             android:layout_marginVertical="@dimen/_12sdp"
             android:backgroundTint="@color/gray_100"
+            android:visibility="gone"
             android:padding="@dimen/_4sdp"
             android:src="@drawable/ic_info"
             app:layout_constraintEnd_toEndOf="parent"

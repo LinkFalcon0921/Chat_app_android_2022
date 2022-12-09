@@ -363,6 +363,35 @@ public class MainActivity extends AppCompatActivity
         this.binding.logoutBtn.setOnClickListener(v -> signOutUser());
 //        Open users List to add
         this.binding.fabAddUser.setOnClickListener(v -> startActivity(goToUserAddListIntent()));
+
+//        how user info
+        this.binding.imagePreview.setOnClickListener(v -> {
+            v.setEnabled(false);
+            Intent userLoggedInfo = getUserLoggedInfoIntent();
+            startActivity(userLoggedInfo);
+            v.setEnabled(true);
+        });
+    }
+
+    @NonNull
+    private Intent getUserLoggedInfoIntent() {
+        Intent userLoggedInfo = getUserLoggedInfo();
+        return userLoggedInfo;
+    }
+
+    @NonNull
+    private Intent getUserLoggedInfo() {
+        Intent userLoggedInfo = new Intent(this, InfoUserActivity.class);
+
+        User userToInfo = new User();
+
+        userToInfo.setId(getLoggedUserId());
+        userToInfo.setAlias(this.loggedPreferencesManager.getString(Users.KEY_ALIAS));
+        userToInfo.getUserAccess().setEmail(this.loggedPreferencesManager.getString(Users.KEY_EMAIL));
+        userToInfo.setImage(this.loggedPreferencesManager.getString(Users.KEY_IMAGE));
+
+        userLoggedInfo.putExtra(Users.KEY_USER_OBJ, userToInfo);
+        return userLoggedInfo;
     }
 
     private Intent goToUserAddListIntent() {

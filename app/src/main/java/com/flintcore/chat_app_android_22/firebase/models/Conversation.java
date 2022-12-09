@@ -28,6 +28,8 @@ public class Conversation implements Serializable, Comparable<Conversation> {
     @Exclude
     private String senderImage;
     @Exclude
+    private String senderEmail;
+    @Exclude
     private String senderName;
     @Exclude
     private String message;
@@ -113,8 +115,8 @@ public class Conversation implements Serializable, Comparable<Conversation> {
         if (this == o) return true;
         if (!(o instanceof Conversation)) return false;
         Conversation that = (Conversation) o;
-        return id.equals(that.id) && chatMessage.equals(that.chatMessage)
-                && lastDateSent.equals(that.lastDateSent) && Objects.equals(receiver, that.receiver)
+        return Objects.equals(id, that.id) && Objects.equals(chatMessage, that.chatMessage)
+                && Objects.equals(lastDateSent,that.lastDateSent) && Objects.equals(receiver, that.receiver)
                 && Objects.equals(senderImage, that.senderImage)
                 && Objects.equals(senderName, that.senderName) && Objects.equals(message, that.message);
     }

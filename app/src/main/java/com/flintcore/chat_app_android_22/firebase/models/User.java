@@ -26,6 +26,7 @@ public class User implements Serializable, Comparable<User>{
     private UserAccess userAccess;
 
     public User() {
+        this.userAccess = new UserAccess();
     }
 
     public String getToken() {

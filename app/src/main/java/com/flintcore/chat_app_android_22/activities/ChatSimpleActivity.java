@@ -3,6 +3,7 @@ package com.flintcore.chat_app_android_22.activities;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages.FAIL_GET_RESPONSE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Results.MESSAGE;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.InputFilter;
 import android.view.View;
@@ -224,6 +225,28 @@ public class ChatSimpleActivity extends AppCompatActivity
     private void setListeners() {
         this.binding.backBtn.setOnClickListener(v -> onBackPressed());
         this.binding.sendBtn.setOnClickListener(v -> sendMessageAction());
+
+//        Show user conversation
+//        this.binding.infoBtn.setOnClickListener(v -> {
+//            v.setEnabled(false);
+//
+//            v.setEnabled(true);
+//        });
+    }
+
+    @NonNull
+    private Intent getUserLoggedInfo() {
+        Intent userLoggedInfo = new Intent(this, InfoUserActivity.class);
+
+        User userToInfo = new User();
+
+//        userToInfo.setId(this.actualConversation.getId());
+        userToInfo.setAlias(this.actualConversation.getSenderName());
+        userToInfo.setImage(this.actualConversation.getSenderImage());
+        userToInfo.setImage(this.actualConversation.getSenderImage());
+
+        userLoggedInfo.putExtra(FirebaseConstants.Users.KEY_USER_OBJ, userToInfo);
+        return userLoggedInfo;
     }
 
     //  label  Get data from intent and preferences
@@ -362,10 +385,10 @@ public class ChatSimpleActivity extends AppCompatActivity
     }
 
     private void smoothToLast() {
-        if (chatMessages.isEmpty()){
+        if (chatMessages.isEmpty()) {
             return;
         }
-        this.binding.chatMessageRecycler.smoothScrollToPosition(this.chatMessages.size()-1);
+        this.binding.chatMessageRecycler.smoothScrollToPosition(this.chatMessages.size() - 1);
     }
 
     private Collection<QueryCondition<String, Object>> setQueryAppendConversationListener() {
