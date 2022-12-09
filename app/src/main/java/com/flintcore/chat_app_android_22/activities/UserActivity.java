@@ -14,16 +14,24 @@ import com.flintcore.chat_app_android_22.adapters.RecyclerUserView;
 import com.flintcore.chat_app_android_22.databinding.ActivityUserBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.auth.EmailAuthentication;
+import com.flintcore.chat_app_android_22.firebase.firestore.FirebaseConnection;
 import com.flintcore.chat_app_android_22.firebase.firestore.users.UserCollection;
+import com.flintcore.chat_app_android_22.firebase.models.Conversation;
 import com.flintcore.chat_app_android_22.firebase.models.User;
+import com.flintcore.chat_app_android_22.firebase.queries.QueryCondition;
+import com.flintcore.chat_app_android_22.firebase.queries.QueryCondition.MatchType;
 import com.flintcore.chat_app_android_22.listeners.OnRecyclerItemListener;
 import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
+import com.flintcore.chat_app_android_22.utilities.collections.CollectionsHelper;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.Collection;
-import java.util.Objects;
+import java.util.Comparator;
+import java.util.TreeSet;
 
 
 public class UserActivity extends AppCompatActivity implements OnRecyclerItemListener<User> {
@@ -42,11 +50,17 @@ public class UserActivity extends AppCompatActivity implements OnRecyclerItemLis
         this.loggedPreferencesManager = new PreferencesManager(getApplicationContext(),
                 FirebaseConstants.SharedReferences.KEY_CHAT_USER_LOGGED_PREFERENCES);
 
-        this.userCollection = UserCollection.getInstance(getDefaultOnFail());
-        this.emailAuthentication = EmailAuthentication.getInstance(showMessageCallResultException());
+//        label add methods to validate credentials
+
+        setFirebaseInstance();
         setListeners();
 
         loadUsersInView();
+    }
+
+    private void setFirebaseInstance() {
+        this.userCollection = UserCollection.getInstance(getDefaultOnFail());
+        this.emailAuthentication = EmailAuthentication.getInstance(showMessageCallResultException());
     }
 
     private void setListeners() {
@@ -59,9 +73,8 @@ public class UserActivity extends AppCompatActivity implements OnRecyclerItemLis
         };
     }
 
-    //    Charge all the users available in the database.
-//    Recycler creation here
-
+    //   label Charge all the users available in the database.
+    //   label Recycler creation here
     private void loadUsersInView() {
         startLoadUsers(true);
 
@@ -74,12 +87,53 @@ public class UserActivity extends AppCompatActivity implements OnRecyclerItemLis
 
         String userId = getLoggedUserId();
 
+//        label Set queries
+        Collection<QueryCondition<String, Object>> whereArgs = setAllUsersQuery(userId);
 
-        CallResult<Collection<User>> onSuccess = users -> {
+        CallResult<Task<QuerySnapshot>> onSuccess = getOnFoundUsersCallResult();
+
+        CallResult<Exception> onFail = getOnNotUsersCallResult();
+
+        this.userCollection.getCollections(whereArgs, onSuccess, onFail);
+
+    }
+
+    // label Set all queries necessaries
+    private Collection<QueryCondition<String, Object>> setAllUsersQuery(String userId) {
+        Collection<QueryCondition<String, Object>> queryList = CollectionsHelper.getArrayList();
+
+        QueryCondition<String, Object> userIdNotMatch = new QueryCondition.Builder<String, Object>()
+                .setKey(FirebaseConnection.DOCUMENT_ID)
+                .setValue(userId)
+                .setMatchType(MatchType.NOT_EQUALS)
+                .build();
+
+        queryList.add(userIdNotMatch);
+
+        return queryList;
+    }
+
+    /*label set and add all users to the view*/
+    @NonNull
+    private CallResult<Task<QuerySnapshot>> getOnFoundUsersCallResult() {
+        return task -> {
             startLoadUsers(false);
-            if (Objects.isNull(users) || users.isEmpty()) {
+
+//                label show no users founds
+            if (!task.isComplete() || !task.isSuccessful()) {
+                showErrorMessageOnLoad();
                 return;
             }
+
+            QuerySnapshot result = task.getResult();
+
+//                label show no users founds
+            if (result.isEmpty()) {
+                showErrorMessageOnLoad();
+                return;
+            }
+            Collection<User> users = new TreeSet<>(Comparator.comparing(User::getAlias));
+            users.addAll(result.toObjects(User.class));
 
 //              Recycler view
             RecyclerUserView recyclerAdapter = new RecyclerUserView(users, this);
@@ -87,15 +141,16 @@ public class UserActivity extends AppCompatActivity implements OnRecyclerItemLis
             this.binding.recyclerUserList.setVisibility(View.VISIBLE);
             this.binding.progressBar.setVisibility(View.GONE);
         };
+    }
 
-        CallResult<Exception> onFail = fail -> {
+//    label set in case not possible load users or something else.
+    @NonNull
+    private CallResult<Exception> getOnNotUsersCallResult() {
+        return fail -> {
             startLoadUsers(false);
             this.binding.errorTxt.setText(NO_USERS_AVAILABLE);
             this.binding.errorTxt.setVisibility(View.VISIBLE);
         };
-
-        this.userCollection.getCollections(userId, onSuccess, onFail);
-
     }
 
     private String getLoggedUserId() {
@@ -116,12 +171,19 @@ public class UserActivity extends AppCompatActivity implements OnRecyclerItemLis
         }
     }
 
-    //    Recycler view item selection
+    //  label  Recycler view item selection onClick for start conversation
 
     @Override
     public void onClick(User user) {
         Intent chatUserIntent = new Intent(getApplicationContext(), ChatSimpleActivity.class);
-        chatUserIntent.putExtra(FirebaseConstants.Users.KEY_USER_OBJ, user);
+        Conversation newConversation = new Conversation();
+        newConversation.getMembers().add(getLoggedUserId());
+//        label adding user data
+        newConversation.getMembers().add(user.getId());
+        newConversation.setSenderImage(user.getImage());
+        newConversation.setSenderName(user.getAlias());
+
+        chatUserIntent.putExtra(FirebaseConstants.Conversations.KEY_CONVERSATION_OBJ, newConversation);
         startActivity(chatUserIntent);
         finish();
     }

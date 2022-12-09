@@ -65,12 +65,13 @@ public interface FirebaseConstants {
         String KEY_COLLECTION = "conversations";
         String KEY_ID = "conversationId";
         String KEY_LAST_MESSAGE_ID = "lastMessageId";
-        String KEY_SENDER = "senderId";
+        String KEY_LAST_DATE = "lastDateSent";
+        String KEY_CONVERSATION_RECEIVER = "receiver";
         /**
          * This is the object to check if message was saw by user.
          */
-        String KEY_CONVERSATION_STATUS = "receiver.receiver";
-        String KEY_LAST_DATE = "lastDateSent";
+        String KEY_CONVERSATION_RECEIVER_RECEIVER = KEY_CONVERSATION_RECEIVER.concat(DAT).concat("receiver");
+        String KEY_MEMBERS = "members";
 
         //      Defaults
         String KEY_CHAT_CONVERSATIONS = "conversationList";

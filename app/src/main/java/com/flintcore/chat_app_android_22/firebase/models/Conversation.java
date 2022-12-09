@@ -7,6 +7,8 @@ import com.google.firebase.firestore.Exclude;
 import java.io.Serializable;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
 
 //    For recent messages
@@ -14,11 +16,14 @@ public class Conversation implements Serializable, Comparable<Conversation> {
     @DocumentId
     private String id;
 
-    private String lastMessageId;
+    /**
+     * Beware with object chatMessage
+     */
+    private ChatMessage chatMessage;
     private Date lastDateSent;
-    private String lastSenderId;
 
     private ConversationReceiver receiver;
+    private List<String> members;
 
     @Exclude
     private String senderImage;
@@ -28,20 +33,27 @@ public class Conversation implements Serializable, Comparable<Conversation> {
     private String message;
 
     public Conversation() {
-        this.receiver = new ConversationReceiver();
+        setMembers(new LinkedList<>());
+        setChatMessage(new ChatMessage());
+        setReceiver(new ConversationReceiver());
     }
 
     @DocumentId
     public String getId() {
         return id;
     }
+
     @DocumentId
     public void setId(String conversationId) {
         this.id = conversationId;
     }
 
-    public String getLastMessageId() {
-        return lastMessageId;
+    public ChatMessage getChatMessage() {
+        return chatMessage;
+    }
+
+    public void setChatMessage(ChatMessage lastMessageId) {
+        this.chatMessage = lastMessageId;
     }
 
     @Exclude
@@ -51,10 +63,6 @@ public class Conversation implements Serializable, Comparable<Conversation> {
 
     public void setSenderImage(String senderImage) {
         this.senderImage = senderImage;
-    }
-
-    public void setLastMessageId(String lastMessageId) {
-        this.lastMessageId = lastMessageId;
     }
 
     @Exclude
@@ -68,14 +76,6 @@ public class Conversation implements Serializable, Comparable<Conversation> {
     }
 
     @Exclude
-    public String getLastSenderId() {
-        return lastSenderId;
-    }
-
-    public void setLastSenderId(String lastSenderId) {
-        this.lastSenderId = lastSenderId;
-    }
-
     public void setSenderName(String senderName) {
         this.senderName = senderName;
     }
@@ -100,27 +100,44 @@ public class Conversation implements Serializable, Comparable<Conversation> {
         this.receiver = receiver;
     }
 
+    public List<String> getMembers() {
+        return members;
+    }
+
+    public void setMembers(List<String> members) {
+        this.members = members;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof Conversation)) return false;
         Conversation that = (Conversation) o;
-        return id.equals(that.id) && lastMessageId.equals(that.lastMessageId)
-                && lastDateSent.equals(that.lastDateSent) && lastSenderId.equals(that.lastSenderId)
-                && Objects.equals(receiver, that.receiver) && Objects.equals(senderImage, that.senderImage)
+        return id.equals(that.id) && chatMessage.equals(that.chatMessage)
+                && lastDateSent.equals(that.lastDateSent) && Objects.equals(receiver, that.receiver)
+                && Objects.equals(senderImage, that.senderImage)
                 && Objects.equals(senderName, that.senderName) && Objects.equals(message, that.message);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, lastMessageId, lastDateSent, lastSenderId, receiver, senderImage, senderName, message);
+        return Objects.hash(id, chatMessage, lastDateSent, receiver, senderImage, senderName, message);
     }
 
     @Override
     public int compareTo(Conversation conversation) {
+        Comparator<Conversation> membersComparator = (c1, c2) -> {
+            List<String> usersC1 = c1.getMembers();
+            List<String> usersC2 = c2.getMembers();
+
+            return Boolean.compare(
+                    usersC1.containsAll(usersC2),
+                    usersC2.containsAll(usersC1));
+        };
         return Comparator.comparing(Conversation::hashCode)
                 .thenComparing(Conversation::getLastDateSent)
-                .thenComparing(Conversation::getLastMessageId)
+                .thenComparing(Conversation::getChatMessage)
+                .thenComparing(membersComparator)
                 .compare(this, conversation);
     }
 }

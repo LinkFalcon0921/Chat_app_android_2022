@@ -2,6 +2,7 @@ package com.flintcore.chat_app_android_22.firebase.firestore;
 
 import androidx.annotation.NonNull;
 
+import com.flintcore.chat_app_android_22.firebase.models.wrappers.ModelWrapper;
 import com.flintcore.chat_app_android_22.firebase.queries.QueryCondition;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.FieldPath;
@@ -19,22 +20,24 @@ import java.util.List;
  * <br/> - FieldPath and FieldValue
  * */
 public abstract class FirebaseConnection {
-    public static final FieldPath DOCUMENT_ID = FieldPath.documentId();
+    public static final String DOCUMENT_ID = FieldPath.documentId().toString();
     public static final String DEFAULT_ORDER_BY_FIELD = FieldPath.documentId().toString();
 
-    protected CollectionReference collection;
     private final String DEFAULT_ORDER;
+    protected CollectionReference collection;
+    protected ModelWrapper wrapper;
 
     public FirebaseConnection() {
-        this.DEFAULT_ORDER = FirebaseConnection.DEFAULT_ORDER_BY_FIELD;
+        this(DEFAULT_ORDER_BY_FIELD);
     }
 
     public FirebaseConnection(String DEFAULT_ORDER_BY_FIELD) {
         this.DEFAULT_ORDER = DEFAULT_ORDER_BY_FIELD;
+        this.wrapper = ModelWrapper.getInstance();
     }
 
     @NonNull
-    public final <K extends String, V extends Object>
+    protected final <K extends String, V extends Object>
         Query getFirebaseQuery(@NotNull Collection<QueryCondition<K, V>> queries) {
 
         Query query = this.collection.orderBy(DEFAULT_ORDER);
@@ -49,6 +52,13 @@ public abstract class FirebaseConnection {
                     query = query.whereNotEqualTo(condition.getKey(), condition.getValue());
                     break;
 
+                case ARRAY_IN_ANY:
+                    query = query.whereArrayContainsAny(condition.getKey(), (List<? extends Object>) condition.getValue());
+                    break;
+
+                case ARRAY_IN:
+                    query = query.whereArrayContains(condition.getKey(), condition.getValue());
+
                 default:
                 case EQUALS:
                     query = query.whereEqualTo(condition.getKey(), condition.getValue());
@@ -61,7 +71,7 @@ public abstract class FirebaseConnection {
 
     @NonNull
     protected <K extends String, V extends Object>
-    Query getFirebaseQueryWithId(String userId, @NonNull List<QueryCondition<K, V>> whereConditions) {
+    Query getFirebaseQueryWithId(String userId, @NonNull Collection<QueryCondition<K, V>> whereConditions) {
         return this.getFirebaseQuery(whereConditions)
                 .whereEqualTo(DOCUMENT_ID, userId);
     }

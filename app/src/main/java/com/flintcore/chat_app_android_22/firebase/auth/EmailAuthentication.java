@@ -53,7 +53,13 @@ public class EmailAuthentication {
 
                     if (!task.isComplete() || !task.isSuccessful()) {
                         //TODO Add logic to get Exception
-                        exCallMessage.onCall(getException(NOT_VALID_CREEDENTIALS));
+                        Exception exception = task.getException();
+
+                        if (Objects.isNull(exception)) {
+                            exCallMessage.onCall(getException(NOT_VALID_CREEDENTIALS));
+                        } else{
+                            exCallMessage.onCall(exception);
+                        }
                         return;
                     }
 
@@ -99,7 +105,8 @@ public class EmailAuthentication {
 
         UserProfileChangeRequest userProfileUpdate = new UserProfileChangeRequest.Builder()
                 .setDisplayName(user.getAlias())
-                .setPhotoUri(imageUri)
+// label image removed
+//                .setPhotoUri(imageUri)
                 .build();
 
         this.authenticationInstance.getCurrentUser().updateProfile(userProfileUpdate)

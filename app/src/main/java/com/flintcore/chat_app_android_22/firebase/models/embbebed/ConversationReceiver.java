@@ -2,9 +2,10 @@ package com.flintcore.chat_app_android_22.firebase.models.embbebed;
 
 import com.google.firebase.firestore.DocumentId;
 
+import java.io.Serializable;
 import java.util.Objects;
 
-public class ConversationReceiver {
+public class ConversationReceiver implements Serializable {
     @DocumentId
     private String id;
 

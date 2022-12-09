@@ -88,18 +88,20 @@ public class SignUpActivity extends AppCompatActivity {
     private void setImagePicker() {
         CallResult<Uri> uriCallResult = uri -> {
             try {
-                if (Objects.isNull(imageUriData)) {
+                if (Objects.isNull(uri)) {
+                    this.binding.imagePreview.setEnabled(true);
                     return;
                 }
 
                 Bitmap previewSelected = ImageFormatter
-                        .getImageAs(getContentResolver(), imageUriData);
+                        .getImageAs(getContentResolver(), uri);
 
                 this.binding.imagePreview.setImageBitmap(previewSelected);
 
                 this.binding.imagePreviewTxt.setVisibility(View.GONE);
 
             } catch (FileNotFoundException e) {
+                this.binding.imagePreview.setEnabled(true);
                 getExceptionCallResultDefault().onCall(e);
             }
 

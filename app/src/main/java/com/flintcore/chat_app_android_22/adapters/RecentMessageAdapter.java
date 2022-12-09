@@ -3,6 +3,7 @@ package com.flintcore.chat_app_android_22.adapters;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
@@ -10,20 +11,31 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.flintcore.chat_app_android_22.databinding.UserRecentItemContainerBinding;
+import com.flintcore.chat_app_android_22.firebase.models.ChatMessage;
 import com.flintcore.chat_app_android_22.firebase.models.Conversation;
 import com.flintcore.chat_app_android_22.listeners.OnRecyclerItemListener;
+import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 
 import java.util.Collection;
+import java.util.Objects;
 
 public class RecentMessageAdapter extends RecyclerView.Adapter<RecentMessageAdapter.ConversationHolder> {
 
     private final Collection<Conversation> recentMessages;
     private final OnRecyclerItemListener<Conversation> onClickListener;
+    private final String userLogged;
+    private CallResult<Exception> exceptionCallResult;
 
-    public RecentMessageAdapter(Collection<Conversation> recentMessages, OnRecyclerItemListener<Conversation> onClickListener) {
+    public RecentMessageAdapter(Collection<Conversation> recentMessages, OnRecyclerItemListener<Conversation> onClickListener,
+                                String userLogged) {
         this.recentMessages = recentMessages;
         this.onClickListener = onClickListener;
+        this.userLogged = userLogged;
+    }
+
+    public void setExceptionCallResult(CallResult<Exception> exceptionCallResult) {
+        this.exceptionCallResult = exceptionCallResult;
     }
 
     private static void applyImage(String image, ImageView imageView) {
@@ -45,7 +57,7 @@ public class RecentMessageAdapter extends RecyclerView.Adapter<RecentMessageAdap
     @Override
     public void onBindViewHolder(@NonNull ConversationHolder holder, int position) {
         holder.setData(this.recentMessages.toArray(new Conversation[0])[position],
-                this.onClickListener);
+                this.userLogged,this.onClickListener);
     }
 
     @Override
@@ -64,10 +76,22 @@ public class RecentMessageAdapter extends RecyclerView.Adapter<RecentMessageAdap
             this.binding = binding;
         }
 
-        public void setData(Conversation recentMessage, OnRecyclerItemListener<Conversation> l) {
+        public void setData(Conversation recentMessage, String userLogged, OnRecyclerItemListener<Conversation> l) {
             applyImage(recentMessage.getSenderImage(), this.binding.ImagePreview);
-            this.binding.nameTxt.setText(recentMessage.getSenderName());
-            this.binding.secondOptionalTxt.setText(Encryptions.decrypt(recentMessage.getMessage()));
+
+            String senderName = recentMessage.getSenderName();
+            this.binding.nameTxt.setText(senderName);
+
+            ChatMessage chatMessage = recentMessage.getChatMessage();
+            this.binding.secondOptionalTxt.setText(Encryptions.decrypt(chatMessage.getMessage()));
+
+            boolean validateItWasSaw = Objects.
+                    equals(recentMessage.getReceiver().getWasViewed(), userLogged)
+                    && !recentMessage.getReceiver().getWasViewed();
+
+            this.binding.messageNotify.setVisibility(validateItWasSaw ?
+                    View.VISIBLE : View.GONE);
+
             this.binding.getRoot().setOnClickListener(v -> l.onClick(recentMessage));
         }
     }

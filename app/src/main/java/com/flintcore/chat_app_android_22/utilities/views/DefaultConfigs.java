@@ -7,7 +7,7 @@ public interface DefaultConfigs {
         InputFilter NAME_INPUT_FILTER = new InputFilter.LengthFilter(25);
         InputFilter EMAIL_INPUT_FILTER = new InputFilter.LengthFilter(30);
         InputFilter PASS_INPUT_FILTER = new InputFilter.LengthFilter(25);
-        InputFilter MESSAGE_INPUT_FILTER = new InputFilter.LengthFilter(100);
+        InputFilter MESSAGE_INPUT_FILTER = new InputFilter.LengthFilter(50);
     }
 
 }

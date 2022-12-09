@@ -1,12 +1,13 @@
 package com.flintcore.chat_app_android_22.firebase.firestore.conversations;
 
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations.KEY_COLLECTION;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations.KEY_LAST_DATE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations.KEY_LAST_MESSAGE_ID;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Results.MESSAGE;
 
 import androidx.annotation.NonNull;
 
+import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
+import com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations;
 import com.flintcore.chat_app_android_22.firebase.firestore.FirebaseConnection;
 import com.flintcore.chat_app_android_22.firebase.models.ChatMessage;
 import com.flintcore.chat_app_android_22.firebase.models.Conversation;
@@ -14,29 +15,27 @@ import com.flintcore.chat_app_android_22.firebase.queries.QueryCondition;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class ConversationCollection extends FirebaseConnection
-        implements IConversationCollection<Conversation, String> {
+public class ConversationCollection<D extends ChatMessage> extends FirebaseConnection
+        implements IConversationCollection<Conversation, D, String> {
 
-    private static ConversationCollection conversationInstance;
-    private CollectionReference collection;
+    private static ConversationCollection<ChatMessage> conversationInstance;
+    private CollectionReference chatMessageCollection;
 
     private ConversationCollection(Call onFail) {
+        super();
         try {
             this.collection = FirebaseFirestore.getInstance()
                     .collection(KEY_COLLECTION);
@@ -46,27 +45,30 @@ public class ConversationCollection extends FirebaseConnection
         }
     }
 
-    public static ConversationCollection getConversationInstance(Call onFail) {
-        if (Objects.isNull(conversationInstance)) {
-            conversationInstance = new ConversationCollection(onFail);
-        }
-
-        return conversationInstance;
-    }
-
     private ConversationCollection(CallResult<Exception> onFail) {
+        super();
         try {
             this.collection = FirebaseFirestore.getInstance()
                     .collection(KEY_COLLECTION);
+            this.chatMessageCollection = FirebaseFirestore.getInstance()
+                    .collection(FirebaseConstants.ChatMessages.KEY_COLLECTION);
 
         } catch (Exception ex) {
             onFail.onCall(ex);
         }
     }
 
-    public static ConversationCollection getConversationInstance(CallResult<Exception> onFail) {
+    public static ConversationCollection<ChatMessage> getConversationInstance(Call onFail) {
         if (Objects.isNull(conversationInstance)) {
-            conversationInstance = new ConversationCollection(onFail);
+            conversationInstance = new ConversationCollection<>(onFail);
+        }
+
+        return conversationInstance;
+    }
+
+    public static ConversationCollection<ChatMessage> getConversationInstance(CallResult<Exception> onFail) {
+        if (Objects.isNull(conversationInstance)) {
+            conversationInstance = new ConversationCollection<>(onFail);
         }
 
         return conversationInstance;
@@ -75,28 +77,43 @@ public class ConversationCollection extends FirebaseConnection
     @Override
     public <K extends String, V>
     void addCollectionById(@NonNull Conversation conversation,
-                           @NonNull List<QueryCondition<K, V>> whereConditions,
+                           @NonNull Collection<QueryCondition<K, V>> whereConditions,
                            @NonNull CallResult<Void> onSuccess,
                            @NonNull CallResult<Exception> onFailListener) {
 
-        this.collection.document(conversation.getId())
-                .set(conversation)
+        Map<String, Object> document = this.wrapper.getDocument(conversation);
+
+        DocumentReference documentRefToAdd;
+
+        if (Objects.nonNull(conversation.getId())) {
+            documentRefToAdd = this.collection.document(conversation.getId());
+        } else {
+            documentRefToAdd = this.collection.document();
+            conversation.setId(documentRefToAdd.getId());
+        }
+
+        if (document.containsKey(KEY_LAST_MESSAGE_ID)) {
+            String documentPath = (String) document.get(KEY_LAST_MESSAGE_ID);
+            document.put(KEY_LAST_MESSAGE_ID, this.chatMessageCollection.document(documentPath));
+        }
+
+        documentRefToAdd
+                .set(document)
                 .addOnSuccessListener(onSuccess::onCall)
                 .addOnFailureListener(onFailListener::onCall);
     }
 
-    public void addCollection(Conversation conversation,
-                              OnSuccessListener<DocumentReference> onSuccess) {
-        this.collection
-                .add(conversation)
-                .addOnSuccessListener(onSuccess);
-    }
-
     @Override
     public void update(@NonNull Conversation conversation,
-                       Map<String, Object> fields,
                        @NonNull CallResult<Task<Void>> onComplete,
                        @NonNull CallResult<Exception> onFailListener) {
+
+        Map<String, Object> fields = this.wrapper.getDocument(conversation);
+
+        if (fields.containsKey(KEY_LAST_MESSAGE_ID)) {
+            String documentPath = (String) fields.get(KEY_LAST_MESSAGE_ID);
+            fields.replace(KEY_LAST_MESSAGE_ID, this.chatMessageCollection.document(documentPath));
+        }
 
         this.collection.document(conversation.getId())
                 .update(fields)
@@ -104,33 +121,28 @@ public class ConversationCollection extends FirebaseConnection
                 .addOnFailureListener(onFailListener::onCall);
     }
 
-    //    label delete
-
-    public void updateCollection(@NonNull Conversation conversation, @NonNull CallResult<Void> onSuccess,
-                                 @NonNull Call onFail) {
-        this.collection
-                .document(conversation.getId())
-                .update(
-                        KEY_LAST_MESSAGE_ID, conversation.getLastMessageId(),
-                        KEY_LAST_DATE, conversation.getLastDateSent()
-                ).addOnCompleteListener(result -> {
-                    if (!result.isSuccessful()) {
-                        return;
-                    }
-
-                    onSuccess.onCall(null);
-                }).addOnFailureListener(fail -> {
-                    callOnFail(onFail, throwsException("Unable to send"));
-                });
-    }
-
     @Override
     public <K extends String, V>
-    void getCollections(@NonNull List<QueryCondition<K, V>> whereConditions,
+    void getCollections(@NonNull Collection<QueryCondition<K, V>> whereConditions,
                         @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener,
                         CallResult<Exception> onFailListener) {
 
         this.getFirebaseQuery(whereConditions)
+                .get()
+                .addOnCompleteListener(onCompleteListener::onCall)
+                .addOnFailureListener(onFailListener::onCall);
+
+    }
+
+
+    //    label get by Chat obj
+    public <K extends String, V extends Object>
+    void getCollectionByLastChatMessage(@NonNull D chatMessage,
+                                        @NonNull Collection<QueryCondition<K, V>> whereConditions,
+                                        @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener,
+                                        CallResult<Exception> onFailListener) {
+        this.collection.
+                whereEqualTo(Conversations.KEY_LAST_MESSAGE_ID, chatMessage.getId())
                 .get()
                 .addOnCompleteListener(onCompleteListener::onCall)
                 .addOnFailureListener(onFailListener::onCall);
@@ -162,7 +174,7 @@ public class ConversationCollection extends FirebaseConnection
     @Override
     public <K extends String, V>
     void getCollectionById(@NonNull Conversation conversation,
-                           @NonNull List<QueryCondition<K, V>> whereConditions,
+                           @NonNull Collection<QueryCondition<K, V>> whereConditions,
                            @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener,
                            @NonNull CallResult<Exception> onFailListener) {
 
@@ -176,7 +188,7 @@ public class ConversationCollection extends FirebaseConnection
     @Override
     public <K extends String, V>
     void deleteCollection(@NonNull Conversation conversation,
-                          @NonNull List<QueryCondition<K, V>> whereConditions,
+                          @NonNull Collection<QueryCondition<K, V>> whereConditions,
                           @NonNull CallResult<Task<Void>> onCompleteListener,
                           CallResult<Exception> onFailListener) {
 
@@ -195,34 +207,6 @@ public class ConversationCollection extends FirebaseConnection
         this.getFirebaseQuery(whereArgs)
                 .addSnapshotListener(l);
 
-    }
-
-    //    label delete apply listener snapshot
-
-    public void applyCollectionListener(Map<Object, Object> whereArgs, @NonNull EventListener<QuerySnapshot> l) {
-        if (Objects.isNull(whereArgs) || whereArgs.isEmpty()) {
-            return;
-        }
-
-        Query referenceQuery = null;
-
-        for (Map.Entry<Object, Object> where : whereArgs.entrySet()) {
-            if (Objects.isNull(referenceQuery)) {
-                referenceQuery = this.collection.whereEqualTo(where.getKey().toString(), where.getValue());
-                continue;
-            }
-
-            referenceQuery = referenceQuery.whereEqualTo(where.getKey().toString(), where.getValue());
-        }
-
-        /*ListenerRegistration listenerRegistration = */
-        referenceQuery.addSnapshotListener(l);
-    }
-
-    public void applyCollectionListener(OnCompleteListener<QuerySnapshot> onComplete) {
-        this.collection
-                .get()
-                .addOnCompleteListener(onComplete);
     }
 
     private void callOnFail(Call onFail, Exception ex) {

@@ -8,12 +8,12 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
-import java.util.List;
+import java.util.Collection;
 
 public interface IFirestoreCollection<T, E extends Exception> {
 
     <K extends String, V extends Object>
-    void addCollectionById(@NonNull T t, @NonNull List<QueryCondition<K, V>> whereConditions,
+    void addCollectionById(@NonNull T t, @NonNull Collection<QueryCondition<K, V>> whereConditions,
                            @NonNull CallResult<Void> onSuccess,
                            CallResult<E> onFailListener);
 
@@ -24,17 +24,17 @@ public interface IFirestoreCollection<T, E extends Exception> {
 
     <K extends String, V extends Object>
     void getCollectionById(@NonNull T t,
-                           @NonNull List<QueryCondition<K, V>> whereConditions,
+                           @NonNull Collection<QueryCondition<K, V>> whereConditions,
                            @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener,
                            CallResult<Exception> onFailListener);
 
     <K extends String, V extends Object>
-    void getCollections(@NonNull List<QueryCondition<K, V>> whereConditions,
+    void getCollections(@NonNull Collection<QueryCondition<K, V>> whereConditions,
                         @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener,
                         CallResult<E> onFailListener);
 
     <K extends String, V extends Object>
-    void deleteCollection(@NonNull T t, @NonNull List<QueryCondition<K, V>> whereConditions,
+    void deleteCollection(@NonNull T t, @NonNull Collection<QueryCondition<K, V>> whereConditions,
                           @NonNull CallResult<Task<Void>> onCompleteListener,
                           CallResult<E> onFailListener);
 }

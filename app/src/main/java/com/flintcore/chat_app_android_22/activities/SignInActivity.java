@@ -235,6 +235,7 @@ public class SignInActivity extends AppCompatActivity {
 
         this.binding.signInBtn.setEnabled(true);
         this.binding.signInBtn.setVisibility(View.VISIBLE);
+        this.binding.signUpBtn.setVisibility(View.VISIBLE);
         this.binding.progressBarSign.setVisibility(View.INVISIBLE);
 
     }

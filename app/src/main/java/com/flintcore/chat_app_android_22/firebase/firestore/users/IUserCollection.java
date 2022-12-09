@@ -10,12 +10,14 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.QuerySnapshot;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 public interface IUserCollection<T> extends IFirestoreCollection<T,Exception> {
 
     <K extends String, V extends Object>
-    void updateAvailability(@NonNull T t, @NonNull List<QueryCondition<K, V>> whereConditions,
+    void updateAvailability(@NonNull T t, @NonNull Collection<QueryCondition<K, V>> whereConditions,
                             @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener,
                             CallResult<Exception> onFailListener);
 
@@ -25,10 +27,14 @@ public interface IUserCollection<T> extends IFirestoreCollection<T,Exception> {
                      CallResult<Exception> onFailListener);
 
     <K extends String, V extends Object>
-    void applyUserListener(@NonNull T t, @NonNull List<QueryCondition<K, V>> whereConditions,
+    void applyUserListener(@NonNull T t, @NonNull Collection<QueryCondition<K, V>> whereConditions,
                            @NonNull EventListener<QuerySnapshot> l,
                            CallResult<Exception> onFailListener);
 
     void clearToken(User t, CallResult<Task<Void>> onCompleteListener, CallResult<Exception> onFailListener);
+
+    <K extends String, V extends Object>
+    void applyUserAvailability(@NonNull Collection<QueryCondition<K, V>> whereConditions,
+                               EventListener<QuerySnapshot> l);
 
 }

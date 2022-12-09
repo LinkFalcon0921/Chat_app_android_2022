@@ -13,6 +13,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.flintcore.chat_app_android_22.adapters.ChatMessagingAdapter;
 import com.flintcore.chat_app_android_22.databinding.ActivityChatSimpleBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
+import com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations;
+import com.flintcore.chat_app_android_22.firebase.firestore.FirebaseConnection;
 import com.flintcore.chat_app_android_22.firebase.firestore.chatMessages.ChatMessageCollection;
 import com.flintcore.chat_app_android_22.firebase.firestore.conversations.ConversationCollection;
 import com.flintcore.chat_app_android_22.firebase.firestore.users.UserCollection;
@@ -21,6 +23,7 @@ import com.flintcore.chat_app_android_22.firebase.models.Conversation;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.firebase.models.UserConstants;
 import com.flintcore.chat_app_android_22.firebase.models.embbebed.ConversationReceiver;
+import com.flintcore.chat_app_android_22.firebase.queries.QueryCondition;
 import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
 import com.flintcore.chat_app_android_22.utilities.callback.Call;
@@ -29,40 +32,36 @@ import com.flintcore.chat_app_android_22.utilities.collections.CollectionsHelper
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 import com.flintcore.chat_app_android_22.utilities.views.DefaultConfigs;
 import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.DocumentChange;
-import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
-import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FirebaseFirestoreException;
-import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.TreeSet;
 
 public class ChatSimpleActivity extends AppCompatActivity
-        implements EventListener<QuerySnapshot>, OnCompleteListener<QuerySnapshot>,
-        OnSuccessListener<DocumentReference> {
+        implements EventListener<QuerySnapshot>, OnCompleteListener<QuerySnapshot> {
 
-    public static final int MAX_COUNT = 2;
 
     private ActivityChatSimpleBinding binding;
     private PreferencesManager loggedPreferencesManager;
     private UserCollection userCollection;
     private ChatMessageCollection chatMessageCollection;
-    private ConversationCollection conversationCollection;
+    private ConversationCollection<ChatMessage> conversationCollection;
 
-    private int counter;
-    private User receivedUser;
     private Conversation actualConversation;
     private Collection<ChatMessage> chatMessages;
     private ChatMessagingAdapter chatAdapter;
@@ -72,7 +71,6 @@ public class ChatSimpleActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         this.binding = ActivityChatSimpleBinding.inflate(getLayoutInflater());
         setContentView(this.binding.getRoot());
-        this.counter = 0;
 
         setFireStoreConnections();
 
@@ -85,7 +83,7 @@ public class ChatSimpleActivity extends AppCompatActivity
     }
 
 
-    //    Logic to receive message
+    //  label Logic to receive message
     public void onEvent(QuerySnapshot result, FirebaseFirestoreException error) {
         if (Objects.nonNull(error) || Objects.isNull(result)) {
             HashMap<String, Object> hashMap = CollectionsHelper.getHashMap();
@@ -94,65 +92,87 @@ public class ChatSimpleActivity extends AppCompatActivity
             return;
         }
 
-        int previousChangeCount = this.chatMessages.size();
+        Iterator<DocumentChange> iterator = result.getDocumentChanges().iterator();
 
-        for (DocumentChange documentChange : result.getDocumentChanges()) {
-            QueryDocumentSnapshot documentSnapshot = documentChange.getDocument();
-
-            switch (documentChange.getType()) {
-
-                case ADDED:
-                    ChatMessage newChatMessage = documentSnapshot
-                            .toObject(ChatMessage.class);
-                    newChatMessage.setId(documentSnapshot.getId());
-
-                    String message = Encryptions.decrypt(newChatMessage.getMessage());
-                    newChatMessage.setMessage(message);
-
-                    this.chatMessages.add(newChatMessage);
-
-                case REMOVED:
-                    CallResult<ChatMessage> onChatMatches = chat -> {
-                        this.chatMessages.remove(chat);
-                        int objIndex = Arrays.binarySearch(this.chatMessages.toArray(), chat);
-                        this.chatAdapter.notifyItemRemoved(objIndex);
-                    };
-
-                    this.chatMessages.stream()
-                            .filter(chat -> chat.getId().equals(documentSnapshot.getId()))
-                            .findFirst()
-                            .ifPresent(onChatMatches::onCall);
-            }
-        }
-
-
-        int actualChatSize = this.chatMessages.size();
-
-        if (previousChangeCount > 0) {
-            this.chatAdapter.notifyItemRangeInserted(previousChangeCount, actualChatSize);
-            refreshChatView(actualChatSize);
-            this.binding.chatMessageRecycler.setVisibility(View.VISIBLE);
-        } else {
-            this.chatAdapter.notifyDataSetChanged();
-        }
-        this.binding.progressBar.setVisibility(View.GONE);
-
-//        Load recent messages
-        if (Objects.isNull(this.actualConversation)) {
-            checkRecentMessages();
-        }
-
+        loadUserChatMessages(iterator);
     }
 
-    //    Called when a recent conversation is created or updated.
+    //    label recursive method for load chat in app
+    private void loadUserChatMessages(Iterator<DocumentChange> messageIterator) {
+        if (!messageIterator.hasNext()) {
+            showChatView();
+            smoothToLast();
+            return;
+        }
+
+        DocumentChange documentChange = messageIterator.next();
+        ChatMessage chatMessage = documentChange.getDocument().toObject(ChatMessage.class);
+
+        switch (documentChange.getType()) {
+
+            case ADDED:
+                this.chatMessages.add(chatMessage);
+                addChatMessage(chatMessage);
+                break;
+
+            case MODIFIED:
+                updateChatMessage(chatMessage);
+                break;
+
+            case REMOVED:
+                removeChatMessage(chatMessage);
+        }
+
+        loadUserChatMessages(messageIterator);
+    }
+
+    //    label on add new chat message in listen
+    private void addChatMessage(ChatMessage chatMessage) {
+        String message = Encryptions.decrypt(chatMessage.getMessage());
+        chatMessage.setMessage(message);
+
+        int chatIndex = inIndexCollection(this.chatMessages, chatMessage);
+        this.chatAdapter.notifyItemInserted(chatIndex);
+    }
+
+    //    label update if the chat message was changed.
+    private void updateChatMessage(ChatMessage chatMessage) {
+        CallResult<ChatMessage> onChatMatches = chat -> {
+            int chatIndex = inIndexCollection(this.chatMessages, chat);
+            chat.setMessage(chatMessage.getMessage());
+            chat.setDatetime(chatMessage.getDatetime());
+            this.chatAdapter.notifyItemChanged(chatIndex);
+        };
+
+        this.chatMessages.stream()
+                .filter(chat -> chat.getId().equals(chatMessage.getId()))
+                .findFirst()
+                .ifPresent(onChatMatches::onCall);
+    }
+
+    //    label remove if the chat message was removed.
+    private void removeChatMessage(ChatMessage chatMessage) {
+        CallResult<ChatMessage> onChatMatches = chat -> {
+            int chatIndex = inIndexCollection(this.chatMessages, chat);
+            this.chatMessages.remove(chat);
+            this.chatAdapter.notifyItemRemoved(chatIndex);
+        };
+
+        this.chatMessages.stream()
+                .filter(chat -> chat.getId().equals(chatMessage.getId()))
+                .findFirst()
+                .ifPresent(onChatMatches::onCall);
+    }
+
+    private <T extends Comparable<T>> int inIndexCollection(Collection<T> list, T conversation) {
+        return new ArrayList<T>(list).indexOf(conversation);
+    }
+
+    //  label  Called when a recent conversation is created or updated.
     @Override
     public void onComplete(@NonNull Task<QuerySnapshot> task) {
         QuerySnapshot documentSnapshots = task.getResult();
         if (!task.isSuccessful() || Objects.isNull(documentSnapshots)) {
-            if (this.counter++ < MAX_COUNT) {
-                getOnNotFoundReceivedCall(this.getChatMessage(this.chatMessages.size() - 1))
-                        .start(null);
-            }
             return;
         }
 
@@ -175,22 +195,6 @@ public class ChatSimpleActivity extends AppCompatActivity
         refreshChatView(this.chatMessages.size());
     }
 
-    //    Called when a recent conversation is updated and ready to notify notify
-    @Override
-    public void onSuccess(DocumentReference document) {
-        document.get()
-                .addOnSuccessListener(result -> {
-                    if (!result.exists()) {
-                        return;
-                    }
-
-                    this.actualConversation = result.toObject(Conversation.class);
-                    this.actualConversation.setId(result.getId());
-                    this.conversationCollection.applyCollectionListener(this::onComplete);
-
-                    this.chatAdapter.notifyDataSetChanged();
-                });
-    }
 
     private void setFireStoreConnections() {
         this.userCollection = UserCollection.getInstance(getDefaultOnFailCall());
@@ -198,9 +202,15 @@ public class ChatSimpleActivity extends AppCompatActivity
         this.chatMessageCollection = ChatMessageCollection
                 .getChatMessageCollectionInstance(getDefaultOnFailCall());
 
+        CallResult<Exception> onFail = getOnFailCallResult();
         this.conversationCollection = ConversationCollection
-                .getConversationInstance(getDefaultOnFailCall());
+                .getConversationInstance(onFail);
+    }
 
+    @NonNull
+    private CallResult<Exception> getOnFailCallResult() {
+        return fail -> MessagesAppGenerator.showToast(getApplicationContext(),
+                fail, FAIL_GET_RESPONSE);
     }
 
     private void configureFields() {
@@ -215,27 +225,62 @@ public class ChatSimpleActivity extends AppCompatActivity
         this.binding.backBtn.setOnClickListener(v -> onBackPressed());
         this.binding.sendBtn.setOnClickListener(v -> sendMessageAction());
     }
-    //    Get data from intent and preferences
 
+    //  label  Get data from intent and preferences
     private void loadUserSelectedDetails() {
         this.loggedPreferencesManager = new PreferencesManager(getApplicationContext(),
                 FirebaseConstants.SharedReferences.KEY_CHAT_USER_LOGGED_PREFERENCES);
 
-        this.receivedUser = ((User) getIntent()
-                .getSerializableExtra(FirebaseConstants.Users.KEY_USER_OBJ));
+        this.actualConversation = ((Conversation) getIntent()
+                .getSerializableExtra(Conversations.KEY_CONVERSATION_OBJ));
 
-        this.binding.userChat.setText(this.receivedUser.getAlias());
+        setReceiverInfoView();
     }
-    //    Methods to apply Listener to chat.
 
+    //    label methods to set data for oldest conversations
+    private void setReceiverInfoView() {
+        this.binding.userChatAlias.setText(this.actualConversation.getSenderName());
+    }
+
+
+    // Methods to apply Listener to chat.
+
+    // TODO: 12/9/2022  Check Not actual listener conversation.
     private void listenMessages() {
-        if (Objects.isNull(this.actualConversation)){
-//        Set the conversation if not exists one
-            this.actualConversation = new Conversation();
+        if (Objects.isNull(this.actualConversation.getId())) {
+            showChatView();
+            return;
         }
 
-        this.chatMessageCollection.setListener(getLoggedUserId(), this.receivedUser.getId(),
-                null, this::onEvent);
+        Collection<QueryCondition<String, Object>> queryChatMessageListener =
+                setQueryChatMessageListener();
+
+        this.chatMessageCollection.applyChatListener(queryChatMessageListener, this::onEvent);
+
+    }
+
+    //    label Set queries for chat messages listener and communicate.
+    private Collection<QueryCondition<String, Object>> setQueryChatMessageListener() {
+        Collection<QueryCondition<String, Object>> queryWhereListener = CollectionsHelper.getArrayList();
+
+//        label query all members in the conversation
+        QueryCondition<String, Object> filterByChatSenderId = new QueryCondition.Builder<String, Object>()
+                .setKey(FirebaseConstants.ChatMessages.KEY_SENDER)
+                .setValue(this.actualConversation.getMembers())
+                .setMatchType(QueryCondition.MatchType.IN)
+                .build();
+
+
+        QueryCondition<String, Object> filterByChatReceiverId = new QueryCondition.Builder<String, Object>()
+                .setKey(FirebaseConstants.ChatMessages.KEY_RECEIVED)
+                .setValue(this.actualConversation.getMembers())
+                .setMatchType(QueryCondition.MatchType.IN)
+                .build();
+
+        queryWhereListener.add(filterByChatSenderId);
+        queryWhereListener.add(filterByChatReceiverId);
+
+        return queryWhereListener;
     }
     //    Load the data from the messages in the database.
 
@@ -246,48 +291,23 @@ public class ChatSimpleActivity extends AppCompatActivity
 
         listenMessages();
     }
-    //    Set a listener for notify new messages
-
-    private void checkRecentMessages() {
-        if (this.chatMessages.isEmpty()) {
-            return;
-        }
-
-        ChatMessage message = getChatMessage(this.chatMessages.size() - 1);
-
-        this.conversationCollection.getCollection(message, this::onComplete, getOnFailUnableRecentChats());
-    }
 
     private ChatMessage getChatMessage(int position) {
         return this.chatMessages
                 .toArray(new ChatMessage[0])[position];
     }
 
-    //    Send the message
-
-    /**
-     * Not need parameters in method
-     */
-    @NonNull
-    private Call getOnNotFoundReceivedCall(ChatMessage message) {
-        return unused -> {
-            ChatMessage messageInverted = new ChatMessage();
-            messageInverted.setSenderId(message.getReceivedId());
-            messageInverted.setReceivedId(message.getSenderId());
-
-            this.conversationCollection
-                    .getCollection(messageInverted, this::onComplete, getDefaultOnFailCall());
-        };
-    }
-
-    // Action send message
+    // label Action send message
     private void sendMessageAction() {
         String message = this.binding.inputMessage.getText().toString();
         if (message.trim().isEmpty()) {
             return;
         }
 
-        String receiverId = this.receivedUser.getId();
+        Optional<String> member = getReceiverConversationMember();
+
+//        todo Check this
+        String receiverId = member.orElse(getLoggedUserId());
 
         message = Encryptions.encrypt(message);
 
@@ -300,40 +320,80 @@ public class ChatSimpleActivity extends AppCompatActivity
         messageSent.setMessage(message);
         messageSent.setDatetime(messageSentDate);
 
-        Call onSuccess = unused -> {
-            pushConversation(messageSent);
+//        label when chat was inserted
+        CallResult<Void> onChatInserted = task -> {
+            this.actualConversation.setChatMessage(messageSent);
+            this.actualConversation.setLastDateSent(messageSent.getDatetime());
+            this.actualConversation.getReceiver().setReceiver(receiverId);
+            this.actualConversation.getReceiver().setWasViewed(false);
 
-            this.binding.inputMessage.setText(null);
-            refreshChatView(this.chatMessages.size());
+            if (Objects.isNull(this.actualConversation.getId())) {
+                Collection<QueryCondition<String, Object>> queryAppendConversation =
+                        setQueryAppendConversationListener();
+
+//                label to listen Conversation
+                CallResult<Void> onCreateNewConversation = tasked -> {
+                };
+
+                this.conversationCollection.addCollectionById(this.actualConversation, queryAppendConversation,
+                        onCreateNewConversation, getOnFailCallResult());
+                return;
+            }
+
+            CallResult<Task<Void>> onSuccess = tasked -> {
+//                label it do nothing so thats ok!
+                smoothToLast();
+            };
+
+            CallResult<Exception> onFail = getOnFailCallResult();
+
+
+            this.conversationCollection.update(this.actualConversation, onSuccess, onFail);
+
         };
 
-        Call onFail = getDefaultOnFailCall();
+        CallResult<Exception> onFailSaved = getOnFailCallResult();
 
-        this.chatMessageCollection.addCollection(messageSent, onSuccess, onFail);
+        Collection<QueryCondition<String, Object>> queryChatInsertionConditions = CollectionsHelper.getArrayList();
+
+        this.chatMessageCollection.addCollectionById(messageSent, queryChatInsertionConditions,
+                onChatInserted, onFailSaved);
+
     }
 
-    // On update conversation when send message
-    private void pushConversation(ChatMessage messageSent) {
-        this.actualConversation.getReceiver().setReceiver(messageSent.getReceivedId());
-        this.actualConversation.getReceiver().setWasViewed(false);
-        this.actualConversation.setLastMessageId(messageSent.getId());
-        this.actualConversation.setLastDateSent(new Date());
-
-        if (Objects.isNull(this.actualConversation.getId()) || Objects.isNull(this.actualConversation)) {
-            this.conversationCollection.addCollection(this.actualConversation, this::onSuccess);
+    private void smoothToLast() {
+        if (chatMessages.isEmpty()){
             return;
         }
+        this.binding.chatMessageRecycler.smoothScrollToPosition(this.chatMessages.size()-1);
+    }
 
-        this.conversationCollection.updateCollection(this.actualConversation,
-                vd -> {
-                    this.conversationCollection.applyCollectionListener(task -> {
-                        HashMap<Object, Object> hashMap = CollectionsHelper.getHashMap();
-                        hashMap.put(FieldPath.documentId(), this.actualConversation.getId());
+    private Collection<QueryCondition<String, Object>> setQueryAppendConversationListener() {
+        Collection<QueryCondition<String, Object>> queryConditions = CollectionsHelper.getArrayList();
+//        label Add queries here
 
-                        this.conversationCollection.applyCollectionListener(hashMap, (result, fail) ->{});
-                    });
-                },
-                getDefaultOnFailCall());
+        QueryCondition<String, Object> queryListenForAllMembers = new QueryCondition.Builder<String, Object>()
+                .setKey(Conversations.KEY_MEMBERS)
+                .setValue(this.actualConversation.getMembers())
+                .setMatchType(QueryCondition.MatchType.ARRAY_IN_ANY)
+                .build();
+
+        queryConditions.add(queryListenForAllMembers);
+
+        return queryConditions;
+    }
+
+    @NonNull
+    private Optional<String> getReceiverConversationMember() {
+        return this.actualConversation.getMembers()
+                .stream().filter(mb -> !Objects.equals(mb, getLoggedUserId()))
+                .findFirst();
+    }
+
+    private Collection<QueryCondition<String, Object>> setQueryChatInsertionConditions() {
+        Collection<QueryCondition<String, Object>> queryConditions = CollectionsHelper.getArrayList();
+
+        return queryConditions;
     }
 
     //    Get logged user
@@ -346,7 +406,9 @@ public class ChatSimpleActivity extends AppCompatActivity
         try {
             this.binding.chatMessageRecycler.smoothScrollToPosition(chatMessagesPos - 1);
         } catch (Exception e) {
-            this.binding.chatMessageRecycler.smoothScrollToPosition(this.chatMessages.size() - 1);
+            if (this.chatMessages.size() != 0) {
+                this.binding.chatMessageRecycler.smoothScrollToPosition(this.chatMessages.size() - 1);
+            }
         }
     }
 
@@ -358,24 +420,35 @@ public class ChatSimpleActivity extends AppCompatActivity
         };
     }
 
-    @NonNull
-    private Call getOnFailUnableRecentChats() {
-        return unused -> MessagesAppGenerator.showToast(getApplicationContext(),
-                "No chats recently", FAIL_GET_RESPONSE);
-    }
-
-    //    Get if receiver user is available
+    //   label Get user availability
     private void setUserReceiverAvailableListener() {
-        HashMap<Object, Object> whereArgs = CollectionsHelper.getHashMap();
-        whereArgs.put(FieldPath.documentId(), this.receivedUser.getId());
-        // TODO: 12/8/2022 Change this method
-        this.userCollection.applyUserAvailability(whereArgs, this.userAvailabilityDefault);
+        Collection<QueryCondition<String, Object>> queryUserAvailableListener = setQueryUserAvailableListener();
+
+        this.userCollection.applyUserAvailability(queryUserAvailableListener, this.userAvailabilityListenerDefault);
     }
 
-    //    FOR event to get availability user.
-    private final EventListener<QuerySnapshot> userAvailabilityDefault = (value, error) -> {
+    private Collection<QueryCondition<String, Object>> setQueryUserAvailableListener() {
+        Collection<QueryCondition<String, Object>> queryWhereListener = CollectionsHelper.getArrayList();
+
+        this.actualConversation.getMembers()
+                .stream()
+//            label not equals to the instance object
+                .filter(mb -> !Objects.equals(getLoggedUserId(), mb))
+                .map(mb -> new QueryCondition.Builder<String, Object>()
+                        .setKey(FirebaseConnection.DOCUMENT_ID)
+                        .setValue(mb)
+                        .setMatchType(QueryCondition.MatchType.EQUALS)
+                        .build())
+                .forEach(queryWhereListener::add);
+
+        return queryWhereListener;
+    }
+
+
+    //  label  FOR event to get availability user.
+    private final EventListener<QuerySnapshot> userAvailabilityListenerDefault = (value, error) -> {
         if (Objects.isNull(value) || Objects.nonNull(error)) {
-//            TODO logic to not get user availability
+            setUserAvailabilityViewItem(false);
             return;
         }
 
@@ -387,14 +460,29 @@ public class ChatSimpleActivity extends AppCompatActivity
 
                     switch (user.getAvailable()) {
                         case UserConstants.AVAILABLE:
-                            this.binding.availableFlag.setVisibility(View.VISIBLE);
+                            setUserAvailabilityViewItem(true);
                             break;
                         default:
                         case UserConstants.NOT_AVAILABLE:
-                            this.binding.availableFlag.setVisibility(View.GONE);
+                            setUserAvailabilityViewItem(false);
+
                     }
                 });
     };
+
+    private void setUserAvailabilityViewItem(boolean flag) {
+        if (flag) {
+            this.binding.availableFlag.setVisibility(View.VISIBLE);
+            return;
+        }
+
+        this.binding.availableFlag.setVisibility(View.GONE);
+    }
+
+    private void showChatView() {
+        this.binding.progressBar.setVisibility(View.GONE);
+        this.binding.chatMessageRecycler.setVisibility(View.VISIBLE);
+    }
 
     @Override
     protected void onResume() {

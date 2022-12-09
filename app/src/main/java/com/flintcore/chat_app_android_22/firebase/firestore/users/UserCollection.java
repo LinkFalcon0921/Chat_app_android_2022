@@ -77,7 +77,7 @@ public class UserCollection extends FirebaseConnection implements IUserCollectio
 
     @Override
     public <K extends String, V extends Object>
-    void getCollections(@NonNull List<QueryCondition<K, V>> whereConditions,
+    void getCollections(@NonNull Collection<QueryCondition<K, V>> whereConditions,
                         @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener, CallResult<Exception> onFailListener) {
 
         this.getFirebaseQuery(whereConditions)
@@ -87,23 +87,7 @@ public class UserCollection extends FirebaseConnection implements IUserCollectio
 
     }
 
-//    TODO DELETE AND REPLACE
-
-    public void getCollections(String userId, CallResult<Collection<User>> onSuccess, CallResult<Exception> onFail) {
-
-        this.collection
-                .whereNotEqualTo(FieldPath.documentId(), userId)
-                .get()
-                .addOnSuccessListener(result -> {
-                    Collection<User> userIds = result.getDocuments()
-                            .stream().map(doc -> doc.toObject(User.class))
-                            .collect(Collectors.toList());
-
-                    onSuccess.onCall(userIds);
-                })
-                .addOnFailureListener(onFail::onCall);
-
-    }
+// TODO: 12/8/2022 delete
 
     public void getCollection(@NonNull Map<String, Object> whereArgs, Call onSuccess, Call onFail) {
         try {
@@ -157,7 +141,7 @@ public class UserCollection extends FirebaseConnection implements IUserCollectio
 
     public <K extends String, V>
     void getCollectionById(@NonNull User user,
-                           @NonNull List<QueryCondition<K, V>> whereConditions,
+                           @NonNull Collection<QueryCondition<K, V>> whereConditions,
                            @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener,
                            CallResult<Exception> onFailListener) {
 
@@ -178,53 +162,17 @@ public class UserCollection extends FirebaseConnection implements IUserCollectio
                 .addOnFailureListener(onFailListener::onCall);
     }
 
-    public void getCollection(String userId, Call onSuccess, Call onFail) {
-        this.collection.document(userId)
-                .get()
-                .addOnCompleteListener(result -> {
-                    if (!result.isSuccessful() || !result.getResult().exists()) {
-                        callOnFail(onFail, throwsDefaultException("No chats recently"));
-                    }
-
-                    DocumentSnapshot documentSnapshot = result.getResult();
-                    User user = documentSnapshot.toObject(User.class);
-                    user.setId(documentSnapshot.getId());
-
-                    HashMap<String, Object> hashMap = new HashMap<>();
-                    hashMap.put(KEY_USER_OBJ, user);
-
-                    onSuccess.start(hashMap);
-                })
-                .addOnFailureListener(fail -> callOnFail(onFail, fail));
-    }
-
-
     @Override
     public <K extends String, V extends Object>
-    void addCollectionById(@NonNull User user, @NonNull List<QueryCondition<K, V>> whereConditions,
+    void addCollectionById(@NonNull User user, @NonNull Collection<QueryCondition<K, V>> whereConditions,
                            @NonNull CallResult<Void> onSuccess, CallResult<Exception> onFailListener) {
+        Map<String, Object> document = this.wrapper.getDocument(user);
 
         this.collection.document(user.getId())
-                .set(user)
+                .set(document)
                 .addOnSuccessListener(onSuccess::onCall)
                 .addOnFailureListener(onFailListener::onCall);
 
-    }
-
-//    TODO LABEL Complete the method for user info activity
-
-    public void deleteCollection(String s, Call onSuccess, Call onFail) {
-    }
-
-    private void connectAndGetToken(String id, String token, Call onSuccess, Call onFail) {
-        this.collection.document(id)
-                .update(KEY_FMC_TOKEN, token)
-                .addOnCompleteListener(result -> onSuccess.start(null))
-                .addOnFailureListener(fail -> {
-                    Map<String, Object> values = new HashMap<>();
-                    values.put(FirebaseConstants.Results.MESSAGE, "Check your internet connection");
-                    onFail.start(values);
-                });
     }
 
     /**
@@ -239,8 +187,17 @@ public class UserCollection extends FirebaseConnection implements IUserCollectio
                 .addOnCompleteListener(onCompleteListener::onCall)
                 .addOnFailureListener(onFailListener::onCall);
 
+    }
+
+    public void updateToken(User user){
+
+        if (Objects.isNull(user)) {
+            return;
+        }
+
         Object value = Objects.isNull(user.getToken()) ?
                 FieldValue.delete() : user.getToken();
+
 
         this.collection.document(user.getId())
                 .update(KEY_FMC_TOKEN, value);
@@ -257,30 +214,9 @@ public class UserCollection extends FirebaseConnection implements IUserCollectio
 
     }
 
-    // TODO: REPLACE AND DELETE
-
-    public void updateToken(String id, Call onSuccess, Call onFail) {
-        FirebaseMessaging.getInstance().getToken()
-                .addOnSuccessListener(result ->
-                        connectAndGetToken(id, result, onSuccess, onFail));
-    }
-
-
-    // TODO: REPLACE AND DELETE
-    public void clearToken(String id, Call onSuccess, Call onFail) {
-        this.collection.document(id)
-                .update(KEY_FMC_TOKEN, FieldValue.delete())
-                .addOnSuccessListener(unused -> {
-                    onSuccess.start(null);
-                }).addOnFailureListener(fail -> {
-                    callOnFail(onFail, fail);
-                });
-    }
-
-
     @Override
     public <K extends String, V extends Object>
-    void updateAvailability(@NonNull User user, @NonNull List<QueryCondition<K, V>> whereConditions,
+    void updateAvailability(@NonNull User user, @NonNull Collection<QueryCondition<K, V>> whereConditions,
                             @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener, CallResult<Exception> onFailListener) {
         this.collection
                 .document(user.getId())
@@ -297,8 +233,9 @@ public class UserCollection extends FirebaseConnection implements IUserCollectio
                 .update(KEY_AVAILABLE, newValue);
     }
 
+    @Override
     public <K extends String, V extends Object>
-    void applyUserListener(@NonNull User user, @NonNull List<QueryCondition<K, V>> whereConditions,
+    void applyUserListener(@NonNull User user, @NonNull Collection<QueryCondition<K, V>> whereConditions,
                            @NonNull EventListener<QuerySnapshot> l,
                            CallResult<Exception> onFailListener) {
 
@@ -307,30 +244,19 @@ public class UserCollection extends FirebaseConnection implements IUserCollectio
 
     }
 
-    //    label Method to get Query with user id isntance
+//    label Set userAvailability via queries
 
+    @Override
+    public <K extends String, V>
+    void applyUserAvailability(@NonNull Collection<QueryCondition<K, V>> whereConditions,
+                               EventListener<QuerySnapshot> l) {
 
-    // TODO: REPLACE AND DELETE
+        this.getFirebaseQuery(whereConditions)
+                .addSnapshotListener(l);
 
-    public void applyUserAvailability(@NonNull Map<Object, Object> whereArgs, EventListener<QuerySnapshot> l) {
-        if (whereArgs.isEmpty()) {
-            return;
-        }
-
-        Query referenceQuery = null;
-
-        for (Map.Entry<Object, Object> entry : whereArgs.entrySet()) {
-            if (Objects.isNull(referenceQuery)) {
-                referenceQuery = this.collection
-                        .whereEqualTo(entry.getKey().toString(), entry.getValue().toString());
-                continue;
-            }
-            referenceQuery = referenceQuery
-                    .whereEqualTo(entry.getKey().toString(), entry.getValue().toString());
-        }
-
-        referenceQuery.addSnapshotListener(l);
     }
+
+
 
     // TODO: REPLACE AND DELETE
 
@@ -351,7 +277,7 @@ public class UserCollection extends FirebaseConnection implements IUserCollectio
     @Override
     public <K extends String, V extends Object>
     void deleteCollection(@NonNull User user,
-                          @NonNull List<QueryCondition<K, V>> whereConditions,
+                          @NonNull Collection<QueryCondition<K, V>> whereConditions,
                           @NonNull CallResult<Task<Void>> onCompleteListener,
                           CallResult<Exception> onFailListener) {
 

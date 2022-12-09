@@ -44,7 +44,7 @@
             app:tint="@color/white_100" />
 
         <TextView
-            android:id="@+id/user_chat"
+            android:id="@+id/user_chat_alias"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/_6sdp"
@@ -63,9 +63,9 @@
             android:layout_height="@dimen/_12sdp"
             android:background="@drawable/background_available_user_flag"
             android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="@id/user_chat"
+            app:layout_constraintBottom_toBottomOf="@id/user_chat_alias"
             app:layout_constraintLeft_toRightOf="@id/backBtn"
-            app:layout_constraintRight_toLeftOf="@id/user_chat"
+            app:layout_constraintRight_toLeftOf="@id/user_chat_alias"
             app:layout_constraintTop_toTopOf="@id/backBtn" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>

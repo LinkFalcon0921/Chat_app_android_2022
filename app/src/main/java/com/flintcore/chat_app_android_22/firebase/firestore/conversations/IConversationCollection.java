@@ -12,9 +12,15 @@ import com.google.firebase.firestore.QuerySnapshot;
 import java.util.Collection;
 import java.util.Map;
 
-public interface IConversationCollection<T, K> extends IFirestoreCollection<T, Exception> {
+public interface IConversationCollection<T, C, K> extends IFirestoreCollection<T, Exception> {
 
-    void update(T t, Map<String, Object> fields, CallResult<Task<Void>> onComplete, CallResult<Exception> onFailListener);
+    void update(T t, CallResult<Task<Void>> onComplete, CallResult<Exception> onFailListener);
+
+    <K extends String, V extends Object>
+    void getCollectionByLastChatMessage(@NonNull C c,
+                           @NonNull Collection<QueryCondition<K, V>> whereConditions,
+                           @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener,
+                           CallResult<Exception> onFailListener);
 
     <K extends String, V extends Object>
     void applyCollectionListener(Collection<QueryCondition<K, V>> whereArgs,
