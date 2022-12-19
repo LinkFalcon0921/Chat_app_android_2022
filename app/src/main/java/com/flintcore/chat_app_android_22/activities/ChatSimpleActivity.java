@@ -23,7 +23,6 @@ import com.flintcore.chat_app_android_22.firebase.models.ChatMessage;
 import com.flintcore.chat_app_android_22.firebase.models.Conversation;
 import com.flintcore.chat_app_android_22.firebase.models.User;
 import com.flintcore.chat_app_android_22.firebase.models.UserConstants;
-import com.flintcore.chat_app_android_22.firebase.models.embbebed.ConversationReceiver;
 import com.flintcore.chat_app_android_22.firebase.queries.QueryCondition;
 import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
@@ -32,12 +31,12 @@ import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.flintcore.chat_app_android_22.utilities.collections.CollectionsHelper;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 import com.flintcore.chat_app_android_22.utilities.views.DefaultConfigs;
-import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.ArrayList;
@@ -54,8 +53,7 @@ import java.util.Optional;
 import java.util.TreeSet;
 
 public class ChatSimpleActivity extends AppCompatActivity
-        implements EventListener<QuerySnapshot>, OnCompleteListener<QuerySnapshot> {
-
+        implements EventListener<QuerySnapshot> {
 
     private ActivityChatSimpleBinding binding;
     private PreferencesManager loggedPreferencesManager;
@@ -66,6 +64,7 @@ public class ChatSimpleActivity extends AppCompatActivity
     private Conversation actualConversation;
     private Collection<ChatMessage> chatMessages;
     private ChatMessagingAdapter chatAdapter;
+    private ListenerRegistration conversationOnRegistration;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,11 +72,15 @@ public class ChatSimpleActivity extends AppCompatActivity
         this.binding = ActivityChatSimpleBinding.inflate(getLayoutInflater());
         setContentView(this.binding.getRoot());
 
+//        label: append instance to firestore / firebase instances...
         setFireStoreConnections();
 
+//        label: Set the inputs and buttons interactions
         configureFields();
-        loadUserSelectedDetails();
         setListeners();
+
+        //  label: Load the given conversation data.
+        loadUserSelectedDetails();
         loadChatData();
 
         setUserReceiverAvailableListener();
@@ -165,37 +168,9 @@ public class ChatSimpleActivity extends AppCompatActivity
                 .ifPresent(onChatMatches::onCall);
     }
 
-    private <T extends Comparable<T>> int inIndexCollection(Collection<T> list, T conversation) {
-        return new ArrayList<T>(list).indexOf(conversation);
+    private <T extends Comparable<T>> int inIndexCollection(Collection<T> collection, T conversation) {
+        return new ArrayList<>(collection).indexOf(conversation);
     }
-
-    //  label  Called when a recent conversation is created or updated.
-    @Override
-    public void onComplete(@NonNull Task<QuerySnapshot> task) {
-        QuerySnapshot documentSnapshots = task.getResult();
-        if (!task.isSuccessful() || Objects.isNull(documentSnapshots)) {
-            return;
-        }
-
-        List<DocumentSnapshot> documents = documentSnapshots.getDocuments();
-
-        if (documents.isEmpty()) {
-            return;
-        }
-
-        DocumentSnapshot document = documents.get(0);
-        this.actualConversation = document.toObject(Conversation.class);
-        this.actualConversation.setId(document.getId());
-
-        ConversationReceiver conversationReceiver = this.actualConversation.getReceiver();
-        if (conversationReceiver.getReceiver().equals(getLoggedUserId())
-                && !conversationReceiver.getWasViewed()) {
-            conversationReceiver.setWasViewed(true);
-        }
-
-        refreshChatView(this.chatMessages.size());
-    }
-
 
     private void setFireStoreConnections() {
         this.userCollection = UserCollection.getInstance(getDefaultOnFailCall());
@@ -226,21 +201,15 @@ public class ChatSimpleActivity extends AppCompatActivity
         this.binding.backBtn.setOnClickListener(v -> onBackPressed());
         this.binding.sendBtn.setOnClickListener(v -> sendMessageAction());
 
-//        Show user conversation
-//        this.binding.infoBtn.setOnClickListener(v -> {
-//            v.setEnabled(false);
-//
-//            v.setEnabled(true);
-//        });
     }
 
+    //    TODO
     @NonNull
     private Intent getUserLoggedInfo() {
         Intent userLoggedInfo = new Intent(this, InfoUserActivity.class);
 
         User userToInfo = new User();
 
-//        userToInfo.setId(this.actualConversation.getId());
         userToInfo.setAlias(this.actualConversation.getSenderName());
         userToInfo.setImage(this.actualConversation.getSenderImage());
         userToInfo.setImage(this.actualConversation.getSenderImage());
@@ -266,15 +235,9 @@ public class ChatSimpleActivity extends AppCompatActivity
     }
 
 
-    // Methods to apply Listener to chat.
+    // label: Methods to apply Listener to chat.
 
-    // TODO: 12/9/2022  Check Not actual listener conversation.
     private void listenMessages() {
-        if (Objects.isNull(this.actualConversation.getId())) {
-            showChatView();
-            return;
-        }
-
         Collection<QueryCondition<String, Object>> queryChatMessageListener =
                 setQueryChatMessageListener();
 
@@ -292,7 +255,6 @@ public class ChatSimpleActivity extends AppCompatActivity
                 .setValue(this.actualConversation.getMembers())
                 .setMatchType(QueryCondition.MatchType.IN)
                 .build();
-
 
         QueryCondition<String, Object> filterByChatReceiverId = new QueryCondition.Builder<String, Object>()
                 .setKey(FirebaseConstants.ChatMessages.KEY_RECEIVED)
@@ -312,16 +274,59 @@ public class ChatSimpleActivity extends AppCompatActivity
         this.chatAdapter = new ChatMessagingAdapter(getLoggedUserId(), this.chatMessages);
         this.binding.chatMessageRecycler.setAdapter(this.chatAdapter);
 
+//        TODO listen conversation
+        listenConversation();
+
         listenMessages();
     }
 
-    private ChatMessage getChatMessage(int position) {
-        return this.chatMessages
-                .toArray(new ChatMessage[0])[position];
+    //    Load and listen for a conversation
+    private synchronized void listenConversation() {
+        if (Objects.nonNull(this.actualConversation.getId())) {
+            return;
+        }
+
+        EventListener<QuerySnapshot> onListenConversation = (result, fail) -> {
+            if (Objects.isNull(result) || Objects.nonNull(fail)) {
+                return;
+            }
+
+            List<DocumentSnapshot> snapshotList = result.getDocuments();
+
+            for (DocumentSnapshot doc : snapshotList) {
+                List<String> listConversion = (List<String>) doc.get(Conversations.KEY_MEMBERS);
+                if (this.actualConversation.getMembers().equals(listConversion)) {
+                    this.actualConversation.setId(doc.getId());
+                    this.conversationOnRegistration.remove();
+                    this.conversationOnRegistration = null;
+                    return;
+                }
+            }
+        };
+
+        Collection<QueryCondition<String, Object>> conversationsConditions = setOnListenConversationsConditions();
+
+//        label: Listen to the conversations if empty or got for the first time
+        conversationOnRegistration = this.conversationCollection
+                .applyCollectionListenerWithResult(conversationsConditions, onListenConversation);
+    }
+
+    private Collection<QueryCondition<String, Object>> setOnListenConversationsConditions() {
+        Collection<QueryCondition<String, Object>> conditions = CollectionsHelper.getArrayList();
+
+        QueryCondition<String, Object> conversationListener = new QueryCondition.Builder<String, Object>()
+                .setKey(Conversations.KEY_MEMBERS)
+                .setMatchType(QueryCondition.MatchType.ARRAY_IN)
+                .setValue(this.actualConversation.getMembers().get(0))
+                .build();
+
+        conditions.add(conversationListener);
+
+        return conditions;
     }
 
     // label Action send message
-    private void sendMessageAction() {
+    private synchronized void sendMessageAction() {
         String message = this.binding.inputMessage.getText().toString();
         if (message.trim().isEmpty()) {
             return;
@@ -329,19 +334,16 @@ public class ChatSimpleActivity extends AppCompatActivity
 
         Optional<String> member = getReceiverConversationMember();
 
-//        todo Check this
         String receiverId = member.orElse(getLoggedUserId());
 
         message = Encryptions.encrypt(message);
-
-        Date messageSentDate = new Date();
 
         ChatMessage messageSent = new ChatMessage();
 
         messageSent.setSenderId(getLoggedUserId());
         messageSent.setReceivedId(receiverId);
         messageSent.setMessage(message);
-        messageSent.setDatetime(messageSentDate);
+        messageSent.setDatetime(new Date());
 
 //        label when chat was inserted
         CallResult<Void> onChatInserted = task -> {
@@ -422,17 +424,6 @@ public class ChatSimpleActivity extends AppCompatActivity
     //    Get logged user
     private String getLoggedUserId() {
         return this.loggedPreferencesManager.getString(FirebaseConstants.Users.KEY_USER_ID);
-    }
-
-    private void refreshChatView(int chatMessagesPos) {
-
-        try {
-            this.binding.chatMessageRecycler.smoothScrollToPosition(chatMessagesPos - 1);
-        } catch (Exception e) {
-            if (this.chatMessages.size() != 0) {
-                this.binding.chatMessageRecycler.smoothScrollToPosition(this.chatMessages.size() - 1);
-            }
-        }
     }
 
     private Call getDefaultOnFailCall() {

@@ -21,6 +21,7 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.Collection;
@@ -111,8 +112,8 @@ public class ConversationCollection<D extends ChatMessage> extends FirebaseConne
         Map<String, Object> fields = this.wrapper.getDocument(conversation);
 
         if (fields.containsKey(KEY_LAST_MESSAGE_ID)) {
-            String documentPath = (String) fields.get(KEY_LAST_MESSAGE_ID);
-            fields.replace(KEY_LAST_MESSAGE_ID, this.chatMessageCollection.document(documentPath));
+            String chatDocumentPath = (String) fields.get(KEY_LAST_MESSAGE_ID);
+            fields.replace(KEY_LAST_MESSAGE_ID, this.chatMessageCollection.document(chatDocumentPath));
         }
 
         this.collection.document(conversation.getId())
@@ -206,7 +207,14 @@ public class ConversationCollection<D extends ChatMessage> extends FirebaseConne
 
         this.getFirebaseQuery(whereArgs)
                 .addSnapshotListener(l);
+    }
 
+    public <K extends String, V>
+    ListenerRegistration applyCollectionListenerWithResult(Collection<QueryCondition<K, V>> whereArgs,
+                                                 @NonNull EventListener<QuerySnapshot> l) {
+
+        return this.getFirebaseQuery(whereArgs)
+                .addSnapshotListener(l);
     }
 
     private void callOnFail(Call onFail, Exception ex) {

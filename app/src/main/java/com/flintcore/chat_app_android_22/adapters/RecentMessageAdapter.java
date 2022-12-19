@@ -90,7 +90,7 @@ public class RecentMessageAdapter extends RecyclerView.Adapter<RecentMessageAdap
                     && !recentMessage.getReceiver().getWasViewed();
 
             this.binding.messageNotify.setVisibility(validateItWasSaw ?
-                    View.VISIBLE : View.GONE);
+                    View.GONE : View.VISIBLE);
 
             this.binding.getRoot().setOnClickListener(v -> l.onClick(recentMessage));
         }

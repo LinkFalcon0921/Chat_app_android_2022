@@ -45,7 +45,7 @@ public abstract class FirebaseConnection {
         for (QueryCondition<K, V> condition : queries) {
             switch (condition.getMatchType()) {
                 case IN:
-                    query = this.collection.whereIn(condition.getKey(), (List) condition.getValue());
+                    query = this.collection.whereIn(condition.getKey(), (List<Object>) condition.getValue());
                     break;
 
                 case NOT_EQUALS:
@@ -53,11 +53,12 @@ public abstract class FirebaseConnection {
                     break;
 
                 case ARRAY_IN_ANY:
-                    query = query.whereArrayContainsAny(condition.getKey(), (List<? extends Object>) condition.getValue());
+                    query = query.whereArrayContainsAny(condition.getKey(), (List<Object>) condition.getValue());
                     break;
 
                 case ARRAY_IN:
                     query = query.whereArrayContains(condition.getKey(), condition.getValue());
+                    break;
 
                 default:
                 case EQUALS:

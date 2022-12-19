@@ -200,8 +200,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     //  label  Method to update the recycler when map all data.
-    private void
-    updateRecentConversation(Conversation conversation, Conversation newConversation) {
+    private void updateRecentConversation(Conversation conversation, Conversation newConversation) {
         int searchIndex = getIndexInCollection(this.conversations, conversation);
 
         if (searchIndex < 0) {
@@ -243,6 +242,8 @@ public class MainActivity extends AppCompatActivity
             }
 
             conversation.getReceiver().setWasViewed(true);
+//            Update the state in the database
+            this.conversationCollection.update(conversation, (r)->{}, getExceptionCallResult());
             Intent chatRecentIntent = new Intent(getApplicationContext(), ChatSimpleActivity.class);
             chatRecentIntent.putExtra(Conversations.KEY_CONVERSATION_OBJ, conversation);
             startActivity(chatRecentIntent);
@@ -480,14 +481,6 @@ public class MainActivity extends AppCompatActivity
             MessagesAppGenerator
                     .showToast(getApplicationContext(), fail, Messages.FAIL_GET_RESPONSE);
             showRecentListView();
-        };
-    }
-
-    @NonNull
-    private Call getOnFailFirebaseConnection() {
-        return data -> {
-            String message = (String) data.get(Results.MESSAGE);
-            MessagesAppGenerator.showToast(getApplicationContext(), message, Messages.FAIL_GET_RESPONSE);
         };
     }
 
