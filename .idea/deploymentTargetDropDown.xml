@@ -7,19 +7,19 @@
         <deviceKey>
           <Key>
             <type value="VIRTUAL_DEVICE_PATH" />
-            <value value="C:\Users\Elior\.android\avd\Pixel_3a_API_26_-_2.avd" />
+            <value value="C:\Users\Elior\.android\avd\Pixel_3a_API_26.avd" />
           </Key>
         </deviceKey>
       </Target>
     </runningDeviceTargetSelectedWithDropDown>
-    <timeTargetWasSelectedWithDropDown value="2022-12-19T02:08:34.030876900Z" />
+    <timeTargetWasSelectedWithDropDown value="2022-12-22T01:55:43.395970200Z" />
     <runningDeviceTargetsSelectedWithDialog>
       <Target>
         <type value="RUNNING_DEVICE_TARGET" />
         <deviceKey>
           <Key>
-            <type value="VIRTUAL_DEVICE_PATH" />
-            <value value="C:\Users\Elior\.android\avd\Pixel_3a_API_26_-_2.avd" />
+            <type value="SERIAL_NUMBER" />
+            <value value="LGH910d764bc0d" />
           </Key>
         </deviceKey>
       </Target>
@@ -34,15 +34,6 @@
       </Target>
     </runningDeviceTargetsSelectedWithDialog>
     <targetsSelectedWithDialog>
-      <Target>
-        <type value="QUICK_BOOT_TARGET" />
-        <deviceKey>
-          <Key>
-            <type value="VIRTUAL_DEVICE_PATH" />
-            <value value="C:\Users\Elior\.android\avd\Pixel_3a_API_26_-_2.avd" />
-          </Key>
-        </deviceKey>
-      </Target>
       <Target>
         <type value="QUICK_BOOT_TARGET" />
         <deviceKey>

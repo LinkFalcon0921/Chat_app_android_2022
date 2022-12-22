@@ -203,6 +203,70 @@ public class ChatSimpleActivity extends AppCompatActivity
 
     }
 
+    // label Action send message
+    private synchronized void sendMessageAction() {
+        String message = this.binding.inputMessage.getText().toString();
+        if (message.trim().isEmpty()) {
+            return;
+        }
+
+        Optional<String> member = getReceiverConversationMember();
+
+        String receiverId = member.orElse(getLoggedUserId());
+
+        message = Encryptions.encrypt(message);
+
+        ChatMessage messageSent = new ChatMessage();
+
+        messageSent.setSenderId(getLoggedUserId());
+        messageSent.setReceivedId(receiverId);
+        messageSent.setMessage(message);
+        messageSent.setDatetime(new Date());
+
+//        label when chat was inserted
+        CallResult<Void> onChatInserted = task -> {
+            this.actualConversation.setChatMessage(messageSent);
+            this.actualConversation.setLastDateSent(messageSent.getDatetime());
+            this.actualConversation.getReceiver().setReceiver(receiverId);
+            this.actualConversation.getReceiver().setWasViewed(false);
+
+            if (Objects.isNull(this.actualConversation.getId())) {
+                Collection<QueryCondition<String, Object>> queryAppendConversation =
+                        setQueryAppendConversationListener();
+
+//                label to listen Conversation
+                CallResult<Void> onCreateNewConversation = tasked -> {
+                };
+
+                this.conversationCollection.addCollectionById(this.actualConversation,
+                        queryAppendConversation,
+                        onCreateNewConversation,
+                        getOnFailCallResult());
+                return;
+            }
+
+            CallResult<Task<Void>> onSuccess = tasked -> {
+//                label it do nothing so thats ok!
+                smoothToLast();
+            };
+
+            CallResult<Exception> onFail = getOnFailCallResult();
+
+
+            this.conversationCollection.update(this.actualConversation, onSuccess, onFail);
+
+        };
+
+        CallResult<Exception> onFailSaved = getOnFailCallResult();
+
+        Collection<QueryCondition<String, Object>> queryChatInsertionConditions =
+                CollectionsHelper.getArrayList();
+
+        this.chatMessageCollection.addCollectionById(messageSent, queryChatInsertionConditions,
+                onChatInserted, onFailSaved);
+
+    }
+
     //    TODO
     @NonNull
     private Intent getUserLoggedInfo() {
@@ -250,13 +314,15 @@ public class ChatSimpleActivity extends AppCompatActivity
         Collection<QueryCondition<String, Object>> queryWhereListener = CollectionsHelper.getArrayList();
 
 //        label query all members in the conversation
-        QueryCondition<String, Object> filterByChatSenderId = new QueryCondition.Builder<String, Object>()
+        QueryCondition<String, Object> filterByChatSenderId = new QueryCondition
+                .Builder<String, Object>()
                 .setKey(FirebaseConstants.ChatMessages.KEY_SENDER)
                 .setValue(this.actualConversation.getMembers())
                 .setMatchType(QueryCondition.MatchType.IN)
                 .build();
 
-        QueryCondition<String, Object> filterByChatReceiverId = new QueryCondition.Builder<String, Object>()
+        QueryCondition<String, Object> filterByChatReceiverId = new QueryCondition
+                .Builder<String, Object>()
                 .setKey(FirebaseConstants.ChatMessages.KEY_RECEIVED)
                 .setValue(this.actualConversation.getMembers())
                 .setMatchType(QueryCondition.MatchType.IN)
@@ -274,9 +340,9 @@ public class ChatSimpleActivity extends AppCompatActivity
         this.chatAdapter = new ChatMessagingAdapter(getLoggedUserId(), this.chatMessages);
         this.binding.chatMessageRecycler.setAdapter(this.chatAdapter);
 
-//        TODO listen conversation
+//        label: listen conversation
         listenConversation();
-
+//        label: listen messages
         listenMessages();
     }
 
@@ -294,8 +360,17 @@ public class ChatSimpleActivity extends AppCompatActivity
             List<DocumentSnapshot> snapshotList = result.getDocuments();
 
             for (DocumentSnapshot doc : snapshotList) {
-                List<String> listConversion = (List<String>) doc.get(Conversations.KEY_MEMBERS);
-                if (this.actualConversation.getMembers().equals(listConversion)) {
+                Collection<String> listConversion =
+                        (Collection<String>) doc.get(Conversations.KEY_MEMBERS);
+
+                int listConvSize = listConversion.size();
+
+                int actualMembersSize = this.actualConversation.getMembers().size();
+
+                // label: Sizes matches
+                if (Objects.equals(actualMembersSize, listConvSize) &&
+                    // label: and has the same values.
+                        this.actualConversation.getMembers().containsAll(listConversion)) {
                     this.actualConversation.setId(doc.getId());
                     this.conversationOnRegistration.remove();
                     this.conversationOnRegistration = null;
@@ -304,7 +379,8 @@ public class ChatSimpleActivity extends AppCompatActivity
             }
         };
 
-        Collection<QueryCondition<String, Object>> conversationsConditions = setOnListenConversationsConditions();
+        Collection<QueryCondition<String, Object>> conversationsConditions =
+                setOnListenConversationsConditions();
 
 //        label: Listen to the conversations if empty or got for the first time
         conversationOnRegistration = this.conversationCollection
@@ -323,67 +399,6 @@ public class ChatSimpleActivity extends AppCompatActivity
         conditions.add(conversationListener);
 
         return conditions;
-    }
-
-    // label Action send message
-    private synchronized void sendMessageAction() {
-        String message = this.binding.inputMessage.getText().toString();
-        if (message.trim().isEmpty()) {
-            return;
-        }
-
-        Optional<String> member = getReceiverConversationMember();
-
-        String receiverId = member.orElse(getLoggedUserId());
-
-        message = Encryptions.encrypt(message);
-
-        ChatMessage messageSent = new ChatMessage();
-
-        messageSent.setSenderId(getLoggedUserId());
-        messageSent.setReceivedId(receiverId);
-        messageSent.setMessage(message);
-        messageSent.setDatetime(new Date());
-
-//        label when chat was inserted
-        CallResult<Void> onChatInserted = task -> {
-            this.actualConversation.setChatMessage(messageSent);
-            this.actualConversation.setLastDateSent(messageSent.getDatetime());
-            this.actualConversation.getReceiver().setReceiver(receiverId);
-            this.actualConversation.getReceiver().setWasViewed(false);
-
-            if (Objects.isNull(this.actualConversation.getId())) {
-                Collection<QueryCondition<String, Object>> queryAppendConversation =
-                        setQueryAppendConversationListener();
-
-//                label to listen Conversation
-                CallResult<Void> onCreateNewConversation = tasked -> {
-                };
-
-                this.conversationCollection.addCollectionById(this.actualConversation, queryAppendConversation,
-                        onCreateNewConversation, getOnFailCallResult());
-                return;
-            }
-
-            CallResult<Task<Void>> onSuccess = tasked -> {
-//                label it do nothing so thats ok!
-                smoothToLast();
-            };
-
-            CallResult<Exception> onFail = getOnFailCallResult();
-
-
-            this.conversationCollection.update(this.actualConversation, onSuccess, onFail);
-
-        };
-
-        CallResult<Exception> onFailSaved = getOnFailCallResult();
-
-        Collection<QueryCondition<String, Object>> queryChatInsertionConditions = CollectionsHelper.getArrayList();
-
-        this.chatMessageCollection.addCollectionById(messageSent, queryChatInsertionConditions,
-                onChatInserted, onFailSaved);
-
     }
 
     private void smoothToLast() {
