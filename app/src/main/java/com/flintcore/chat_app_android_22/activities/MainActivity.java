@@ -150,7 +150,9 @@ public class MainActivity extends AppCompatActivity
         DocumentChange documentChange = iterator.next();
         QueryDocumentSnapshot documentSnapshot = documentChange.getDocument();
         Conversation conversation = documentSnapshot.toObject(Conversation.class);
-        DocumentReference chatMessageDocument = documentSnapshot.get(Conversations.KEY_LAST_MESSAGE_ID, DocumentReference.class);
+
+        DocumentReference chatMessageDocument = documentSnapshot
+                .get(Conversations.KEY_LAST_MESSAGE_ID, DocumentReference.class);
 
 //        Map the reference Chat to object
         CallResult<Task<DocumentSnapshot>> onChatReferenceMapped = task -> {
@@ -169,9 +171,9 @@ public class MainActivity extends AppCompatActivity
                     break;
 
                 case MODIFIED:
-                    CallResult<Conversation> onFoundCallResult = c -> {
-                        updateRecentConversation(c, conversation);
-                    };
+                    CallResult<Conversation> onFoundCallResult = c ->
+                            updateRecentConversation(c, conversation);
+
                     getOptionalConversation(conversation.getId(), onFoundCallResult);
 
                     break;
@@ -243,10 +245,13 @@ public class MainActivity extends AppCompatActivity
 
             conversation.getReceiver().setWasViewed(true);
 //            Update the state in the database
-            this.conversationCollection.update(conversation, (r)->{}, getExceptionCallResult());
-            Intent chatRecentIntent = new Intent(getApplicationContext(), ChatSimpleActivity.class);
-            chatRecentIntent.putExtra(Conversations.KEY_CONVERSATION_OBJ, conversation);
-            startActivity(chatRecentIntent);
+            this.conversationCollection.update(conversation, (r)->{
+                this.updateRecentConversation(conversation, conversation);
+
+                Intent chatRecentIntent = new Intent(getApplicationContext(), ChatSimpleActivity.class);
+                chatRecentIntent.putExtra(Conversations.KEY_CONVERSATION_OBJ, conversation);
+                startActivity(chatRecentIntent);
+            }, getExceptionCallResult());
         };
 
         this.conversationCollection.update(conversation, onCompleteUpdate, getExceptionCallResult());
@@ -455,7 +460,6 @@ public class MainActivity extends AppCompatActivity
 
     private CallResult<String> getUpdateActionToken() {
         return empty -> {
-            this.userCollection.updateAvailable(getLoggedUserId(), UserConstants.AVAILABLE);
             MessagesAppGenerator.showToast(getApplicationContext(), Messages.SIGN_IN_SUCCESSFUL,
                     Messages.FAIL_GET_RESPONSE);
         };
@@ -487,5 +491,12 @@ public class MainActivity extends AppCompatActivity
     private void showUnableLogoutMessage() {
         MessagesAppGenerator.showToast(getApplicationContext(), "It was not possible logged out.",
                 Messages.FAIL_GET_RESPONSE);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        clearToken();
     }
 }

@@ -228,7 +228,7 @@ public class ChatSimpleActivity extends AppCompatActivity
             this.actualConversation.setChatMessage(messageSent);
             this.actualConversation.setLastDateSent(messageSent.getDatetime());
             this.actualConversation.getReceiver().setReceiver(receiverId);
-            this.actualConversation.getReceiver().setWasViewed(false);
+            this.actualConversation.getReceiver().setWasViewed(isSecondMemberLogged());
 
             if (Objects.isNull(this.actualConversation.getId())) {
                 Collection<QueryCondition<String, Object>> queryAppendConversation =
@@ -265,6 +265,11 @@ public class ChatSimpleActivity extends AppCompatActivity
         this.chatMessageCollection.addCollectionById(messageSent, queryChatInsertionConditions,
                 onChatInserted, onFailSaved);
 
+    }
+
+//    label check is the user receiver is logged in the conversation.
+    private boolean isSecondMemberLogged() {
+        return this.binding.availableFlag.getVisibility() == View.VISIBLE;
     }
 
     //    TODO
@@ -369,7 +374,7 @@ public class ChatSimpleActivity extends AppCompatActivity
 
                 // label: Sizes matches
                 if (Objects.equals(actualMembersSize, listConvSize) &&
-                    // label: and has the same values.
+                        // label: and has the same values.
                         this.actualConversation.getMembers().containsAll(listConversion)) {
                     this.actualConversation.setId(doc.getId());
                     this.conversationOnRegistration.remove();
@@ -513,25 +518,30 @@ public class ChatSimpleActivity extends AppCompatActivity
         this.binding.chatMessageRecycler.setVisibility(View.VISIBLE);
     }
 
+//    label: set the status of the user.
+    private void setUserAvailability(int available) {
+        this.userCollection.updateAvailable(getLoggedUserId(), available);
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
 
-        this.userCollection.updateAvailable(getLoggedUserId(), UserConstants.AVAILABLE);
+        setUserAvailability(UserConstants.AVAILABLE);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
 
-        this.userCollection.updateAvailable(getLoggedUserId(), UserConstants.NOT_AVAILABLE);
+        setUserAvailability(UserConstants.NOT_AVAILABLE);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
 
-        this.userCollection.updateAvailable(getLoggedUserId(), UserConstants.NOT_AVAILABLE);
+        setUserAvailability(UserConstants.NOT_AVAILABLE);
     }
 
 }

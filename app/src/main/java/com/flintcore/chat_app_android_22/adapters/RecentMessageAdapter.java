@@ -57,7 +57,7 @@ public class RecentMessageAdapter extends RecyclerView.Adapter<RecentMessageAdap
     @Override
     public void onBindViewHolder(@NonNull ConversationHolder holder, int position) {
         holder.setData(this.recentMessages.toArray(new Conversation[0])[position],
-                this.userLogged,this.onClickListener);
+                this.userLogged, this.onClickListener);
     }
 
     @Override
@@ -85,12 +85,12 @@ public class RecentMessageAdapter extends RecyclerView.Adapter<RecentMessageAdap
             ChatMessage chatMessage = recentMessage.getChatMessage();
             this.binding.secondOptionalTxt.setText(Encryptions.decrypt(chatMessage.getMessage()));
 
-            boolean validateItWasSaw = Objects.
-                    equals(recentMessage.getReceiver().getWasViewed(), userLogged)
-                    && !recentMessage.getReceiver().getWasViewed();
+            boolean validateItWasSaw =
+                    Objects.equals(recentMessage.getReceiver().getReceiver(), userLogged) &&
+                            !recentMessage.getReceiver().getWasViewed();
 
             this.binding.messageNotify.setVisibility(validateItWasSaw ?
-                    View.GONE : View.VISIBLE);
+                    View.VISIBLE : View.GONE);
 
             this.binding.getRoot().setOnClickListener(v -> l.onClick(recentMessage));
         }
