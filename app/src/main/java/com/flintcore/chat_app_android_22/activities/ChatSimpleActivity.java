@@ -103,31 +103,27 @@ public class ChatSimpleActivity extends AppCompatActivity
 
     //    label recursive method for load chat in app
     private void loadUserChatMessages(Iterator<DocumentChange> messageIterator) {
-        if (!messageIterator.hasNext()) {
-            showChatView();
-            smoothToLast();
-            return;
-        }
+        messageIterator.forEachRemaining(messageDoc -> {
+            ChatMessage chatMessage = messageDoc.getDocument().toObject(ChatMessage.class);
 
-        DocumentChange documentChange = messageIterator.next();
-        ChatMessage chatMessage = documentChange.getDocument().toObject(ChatMessage.class);
+            switch (messageDoc.getType()) {
 
-        switch (documentChange.getType()) {
+                case ADDED:
+                    this.chatMessages.add(chatMessage);
+                    addChatMessage(chatMessage);
+                    break;
 
-            case ADDED:
-                this.chatMessages.add(chatMessage);
-                addChatMessage(chatMessage);
-                break;
+                case MODIFIED:
+                    updateChatMessage(chatMessage);
+                    break;
 
-            case MODIFIED:
-                updateChatMessage(chatMessage);
-                break;
+                case REMOVED:
+                    removeChatMessage(chatMessage);
+            }
+        });
 
-            case REMOVED:
-                removeChatMessage(chatMessage);
-        }
-
-        loadUserChatMessages(messageIterator);
+        showChatView();
+        smoothToLast();
     }
 
     //    label on add new chat message in listen
@@ -225,6 +221,8 @@ public class ChatSimpleActivity extends AppCompatActivity
 
 //        label when chat was inserted
         CallResult<Void> onChatInserted = task -> {
+            cleanTextFieldMessage();
+
             this.actualConversation.setChatMessage(messageSent);
             this.actualConversation.setLastDateSent(messageSent.getDatetime());
             this.actualConversation.getReceiver().setReceiver(receiverId);
@@ -234,7 +232,7 @@ public class ChatSimpleActivity extends AppCompatActivity
                 Collection<QueryCondition<String, Object>> queryAppendConversation =
                         setQueryAppendConversationListener();
 
-//                label to listen Conversation
+//                label on create a new conversation success
                 CallResult<Void> onCreateNewConversation = tasked -> {
                 };
 
@@ -245,15 +243,14 @@ public class ChatSimpleActivity extends AppCompatActivity
                 return;
             }
 
-            CallResult<Task<Void>> onSuccess = tasked -> {
-//                label it do nothing so thats ok!
-                smoothToLast();
+            CallResult<Task<Void>> onUpdateCall = tasked -> {
+//                smoothToLast();
             };
 
             CallResult<Exception> onFail = getOnFailCallResult();
 
 
-            this.conversationCollection.update(this.actualConversation, onSuccess, onFail);
+            this.conversationCollection.update(this.actualConversation, onUpdateCall, onFail);
 
         };
 
@@ -264,10 +261,13 @@ public class ChatSimpleActivity extends AppCompatActivity
 
         this.chatMessageCollection.addCollectionById(messageSent, queryChatInsertionConditions,
                 onChatInserted, onFailSaved);
-
     }
 
-//    label check is the user receiver is logged in the conversation.
+    private void cleanTextFieldMessage() {
+        this.binding.inputMessage.setText(null);
+    }
+
+    //    label check is the user receiver is logged in the conversation.
     private boolean isSecondMemberLogged() {
         return this.binding.availableFlag.getVisibility() == View.VISIBLE;
     }
@@ -518,7 +518,7 @@ public class ChatSimpleActivity extends AppCompatActivity
         this.binding.chatMessageRecycler.setVisibility(View.VISIBLE);
     }
 
-//    label: set the status of the user.
+    //    label: set the status of the user.
     private void setUserAvailability(int available) {
         this.userCollection.updateAvailable(getLoggedUserId(), available);
     }
