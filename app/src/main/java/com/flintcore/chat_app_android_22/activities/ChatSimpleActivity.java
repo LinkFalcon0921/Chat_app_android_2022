@@ -223,8 +223,6 @@ public class ChatSimpleActivity extends AppCompatActivity
 
 //        label when chat was inserted
         CallResult<Void> onChatInserted = task -> {
-            cleanTextFieldMessage();
-
             this.actualConversation.setChatMessage(messageSent);
             this.actualConversation.setLastDateSent(messageSent.getDatetime());
             this.actualConversation.getReceiver().setReceiver(receiverId);
@@ -246,7 +244,6 @@ public class ChatSimpleActivity extends AppCompatActivity
             }
 
             CallResult<Task<Void>> onUpdateCall = tasked -> {
-//                smoothToLast();
             };
 
             CallResult<Exception> onFail = getOnFailCallResult();
@@ -260,6 +257,9 @@ public class ChatSimpleActivity extends AppCompatActivity
 
         Collection<QueryCondition<String, Object>> queryChatInsertionConditions =
                 CollectionsHelper.getArrayList();
+
+        // Clean the text field
+        cleanTextFieldMessage();
 
         this.chatMessageCollection.addCollectionById(messageSent, queryChatInsertionConditions,
                 onChatInserted, onFailSaved);
