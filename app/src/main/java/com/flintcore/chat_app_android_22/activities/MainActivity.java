@@ -198,6 +198,7 @@ public class MainActivity extends AppCompatActivity
             mapChatMessageReference(chatMessageDocument, onChatReferenceMapped, onFail);
         });
     }
+
     @NonNull
     private CallResult<Task<DocumentSnapshot>> getOnChatReferenceMapped(@NonNull Date dateFilter,
                                                                         DocumentChange documentChange,
@@ -235,6 +236,7 @@ public class MainActivity extends AppCompatActivity
         this.notificationManager.notify(this, this.notificationManagerCompat,
                 conversation, date);
     }
+
     private void mapChatMessageReference(@Nullable DocumentReference chatMessageDocument,
                                          CallResult<Task<DocumentSnapshot>> onChatReferenceMapped,
                                          CallResult<Exception> onFail) {
@@ -268,6 +270,7 @@ public class MainActivity extends AppCompatActivity
 //        Send the message when updated.
         notifyNewMessage(conversation, dateFilter);
     }
+
     private void fillConversationData(Conversation conversation, Conversation newConversation) {
         conversation.setChatMessage(newConversation.getChatMessage());
         conversation.setLastDateSent(newConversation.getLastDateSent());
@@ -302,7 +305,7 @@ public class MainActivity extends AppCompatActivity
             conversation.getReceiver().setWasViewed(true);
 //            Update the state in the database
             this.conversationCollection.update(conversation, (r) -> {
-//                this.updateRecentConversation(conversation, conversation, dateFilter);
+                this.notificationManager.addDisabledConversation(conversation.getId());
 
                 Intent chatRecentIntent = new Intent(getApplicationContext(), ChatSimpleActivity.class);
                 chatRecentIntent.putExtra(Conversations.KEY_CONVERSATION_OBJ, conversation);
@@ -312,6 +315,7 @@ public class MainActivity extends AppCompatActivity
 
         this.conversationCollection.update(conversation, onCompleteUpdate, getExceptionCallResult());
     }
+
     private void showRecentListView() {
         this.binding.recentConversationsRecycler.setVisibility(View.VISIBLE);
         this.binding.progressBar.setVisibility(View.GONE);
@@ -349,6 +353,7 @@ public class MainActivity extends AppCompatActivity
         });
 
     }
+
     private void setFireStoreConnection() {
         this.userCollection = UserCollection.getInstance(getExceptionCallResult());
 
@@ -396,6 +401,7 @@ public class MainActivity extends AppCompatActivity
     private String getLoggedUserId() {
         return this.loggedPreferencesManager.getString(Users.KEY_USER_ID);
     }
+
     private void getOptionalConversation(String conversationId, CallResult<Conversation> callResult) {
         Optional<Conversation> conversationOptional = this.conversations.stream()
                 .filter(cv -> cv.getId().equals(conversationId)).findFirst();
@@ -418,6 +424,7 @@ public class MainActivity extends AppCompatActivity
             v.setEnabled(true);
         });
     }
+
     @NonNull
     private Intent getUserLoggedInfoIntent() {
         Intent userLoggedInfo = getUserLoggedInfo();
@@ -475,6 +482,7 @@ public class MainActivity extends AppCompatActivity
 
         this.userCollection.clearToken(this.loggedUser, onComplete, onFail);
     }
+
     private CallResult<Task<Void>> getOnDeleteToken() {
         return token -> {
             if (!token.isComplete() || !token.isSuccessful()) {
@@ -527,7 +535,7 @@ public class MainActivity extends AppCompatActivity
         };
     }
 
-//    label: last date logged user
+    //    label: last date logged user
     private void saveLastTimeLogged() {
         this.application.setLastLoggedInDate();
     }

@@ -37,7 +37,7 @@ public class NotificationManager {
 
     private NotificationChannel channelDefaultNotification;
     private boolean enable;
-    private Set<Conversation> disabledConversations;
+    private Set<String> disabledConversations;
 
     public NotificationManager(Application app) {
         this.enable = true;
@@ -75,19 +75,19 @@ public class NotificationManager {
         return this.enable;
     }
 
-    //    add a conversation as disabled.
-    private void addDisabledConversation(Conversation conversation) {
-        this.disabledConversations.add(conversation);
+    //    add a conversationId as disabled.
+    public void addDisabledConversation(String conversationId) {
+        this.disabledConversations.add(conversationId);
     }
 
     //    remove the conversation.
-    private void removeConversation(Conversation conversation) {
-        this.disabledConversations.remove(conversation);
+    public void removeConversation(String conversation) {
+        this.disabledConversations.removeIf(c -> c.equals(conversation));
     }
 
-    //    Check if the conversation was disabled
-    private boolean wasDisabled(Conversation conversation) {
-        return this.disabledConversations.contains(conversation);
+    //    Check if the conversationId was disabled
+    private boolean wasDisabled(String conversationId) {
+        return this.disabledConversations.contains(conversationId);
     }
 
     /**
@@ -99,7 +99,7 @@ public class NotificationManager {
                                     @NonNull final Date lastDate) {
 
 //        Check if manager or conversation was disabled
-        if (!isEnable() || wasDisabled(conversation)) {
+        if (!isEnable() || wasDisabled(conversation.getId())) {
             return;
         }
 

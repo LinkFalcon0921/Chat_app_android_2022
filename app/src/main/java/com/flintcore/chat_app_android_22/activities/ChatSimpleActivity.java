@@ -12,6 +12,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.flintcore.chat_app_android_22.adapters.ChatMessagingAdapter;
+import com.flintcore.chat_app_android_22.application.AppPrincipal;
 import com.flintcore.chat_app_android_22.databinding.ActivityChatSimpleBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations;
@@ -40,9 +41,7 @@ import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
@@ -55,6 +54,7 @@ import java.util.TreeSet;
 public class ChatSimpleActivity extends AppCompatActivity
         implements EventListener<QuerySnapshot> {
 
+    private AppPrincipal application;
     private ActivityChatSimpleBinding binding;
     private PreferencesManager loggedPreferencesManager;
     private UserCollection userCollection;
@@ -71,6 +71,8 @@ public class ChatSimpleActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         this.binding = ActivityChatSimpleBinding.inflate(getLayoutInflater());
         setContentView(this.binding.getRoot());
+
+        this.application = (AppPrincipal) getApplication();
 
 //        label: append instance to firestore / firebase instances...
         setFireStoreConnections();
@@ -523,10 +525,31 @@ public class ChatSimpleActivity extends AppCompatActivity
         this.userCollection.updateAvailable(getLoggedUserId(), available);
     }
 
+    private void enableNotifications() {
+        String id = this.actualConversation.getId();
+        if (Objects.isNull(id)) {
+            return;
+        }
+
+        this.application.getNotificationManager(this)
+                .removeConversation(id);
+    }
+
+    private void disableNotifications() {
+        String id = this.actualConversation.getId();
+        if (Objects.isNull(id)) {
+            return;
+        }
+
+        this.application.getNotificationManager(this)
+                .addDisabledConversation(id);
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
 
+        disableNotifications();
         setUserAvailability(UserConstants.AVAILABLE);
     }
 
@@ -534,6 +557,7 @@ public class ChatSimpleActivity extends AppCompatActivity
     protected void onPause() {
         super.onPause();
 
+        enableNotifications();
         setUserAvailability(UserConstants.NOT_AVAILABLE);
     }
 
