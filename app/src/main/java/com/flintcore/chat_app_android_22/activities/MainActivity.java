@@ -11,13 +11,14 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NotificationManagerCompat;
 
 import com.flintcore.chat_app_android_22.adapters.RecentMessageAdapter;
+import com.flintcore.chat_app_android_22.application.AppPrincipal;
 import com.flintcore.chat_app_android_22.databinding.ActivityMainBinding;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations;
 import com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Messages;
-import com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Results;
 import com.flintcore.chat_app_android_22.firebase.auth.EmailAuthentication;
 import com.flintcore.chat_app_android_22.firebase.firestore.conversations.ConversationCollection;
 import com.flintcore.chat_app_android_22.firebase.firestore.users.UserCollection;
@@ -28,8 +29,8 @@ import com.flintcore.chat_app_android_22.firebase.models.UserConstants;
 import com.flintcore.chat_app_android_22.firebase.queries.QueryCondition;
 import com.flintcore.chat_app_android_22.listeners.OnRecyclerItemListener;
 import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator;
+import com.flintcore.chat_app_android_22.utilities.Messages.notications.NotificationManager;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
-import com.flintcore.chat_app_android_22.utilities.callback.Call;
 import com.flintcore.chat_app_android_22.utilities.callback.CallResult;
 import com.flintcore.chat_app_android_22.utilities.collections.CollectionsHelper;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
@@ -47,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -55,6 +57,12 @@ import java.util.TreeSet;
 
 public class MainActivity extends AppCompatActivity
         implements EventListener<QuerySnapshot>, OnRecyclerItemListener<Conversation> {
+
+    //    Application class
+    private AppPrincipal application;
+    //    To handle notifications.
+    private NotificationManagerCompat notificationManagerCompat;
+    private NotificationManager notificationManager;
 
     private ActivityMainBinding binding;
     private PreferencesManager loggedPreferencesManager;
@@ -73,6 +81,10 @@ public class MainActivity extends AppCompatActivity
         this.binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(this.binding.getRoot());
 
+        this.application = (AppPrincipal) getApplication();
+//        Start a notification manager
+        setNotificationManager();
+
         this.loggedPreferencesManager = new PreferencesManager(getApplicationContext(),
                 FirebaseConstants.SharedReferences.KEY_CHAT_USER_LOGGED_PREFERENCES);
 
@@ -88,6 +100,14 @@ public class MainActivity extends AppCompatActivity
         loadRecentConversations();
 
         setListeners();
+    }
+
+    //    label: Notifications
+    private void setNotificationManager() {
+//        For notifications
+        this.notificationManagerCompat = NotificationManagerCompat.from(this);
+//        to build the notifications
+        this.notificationManager = this.application.getNotificationManager(this);
     }
 
     private boolean validatesAllCredentials() {
@@ -147,6 +167,9 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
+//        get the last logged date
+        Date lastLoggedDate = this.application.getLastLoggedInDate();
+
         DocumentChange documentChange = iterator.next();
         QueryDocumentSnapshot documentSnapshot = documentChange.getDocument();
         Conversation conversation = documentSnapshot.toObject(Conversation.class);
@@ -168,6 +191,7 @@ public class MainActivity extends AppCompatActivity
             switch (documentChange.getType()) {
                 case ADDED:
                     setAdditionalConversationData(conversation);
+                    notifyNewMessage(conversation);
                     break;
 
                 case MODIFIED:
@@ -189,7 +213,14 @@ public class MainActivity extends AppCompatActivity
         mapChatMessageReference(chatMessageDocument, onChatReferenceMapped, onFail);
     }
 
-    private void mapChatMessageReference(DocumentReference chatMessageDocument, CallResult<Task<DocumentSnapshot>> onChatReferenceMapped, CallResult<Exception> onFail) {
+    /*label: Send a notification*/
+    private void notifyNewMessage(Conversation conversation) {
+        this.notificationManager.notify(this, this.notificationManagerCompat, conversation);
+    }
+
+    private void mapChatMessageReference(DocumentReference chatMessageDocument,
+                                         CallResult<Task<DocumentSnapshot>> onChatReferenceMapped,
+                                         CallResult<Exception> onFail) {
         chatMessageDocument.get()
                 .addOnCompleteListener(onChatReferenceMapped::onCall)
                 .addOnFailureListener(onFail::onCall);
@@ -245,7 +276,7 @@ public class MainActivity extends AppCompatActivity
 
             conversation.getReceiver().setWasViewed(true);
 //            Update the state in the database
-            this.conversationCollection.update(conversation, (r)->{
+            this.conversationCollection.update(conversation, (r) -> {
                 this.updateRecentConversation(conversation, conversation);
 
                 Intent chatRecentIntent = new Intent(getApplicationContext(), ChatSimpleActivity.class);
