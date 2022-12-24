@@ -9,6 +9,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.flintcore.chat_app_android_22.utilities.Messages.notications.NotificationManager;
 import com.flintcore.chat_app_android_22.utilities.PreferencesManager;
+import com.google.common.base.Objects;
 
 import java.util.Date;
 
@@ -22,7 +23,7 @@ public class AppPrincipal extends Application {
         String NOTIFICATIONS_FAIL = "Not notifications available";
     }
 
-//    Notification manager
+    //    Notification manager
     private NotificationManager notificationManager;
 
     //    Global preferences
@@ -36,10 +37,12 @@ public class AppPrincipal extends Application {
         setPreferencesManager();
     }
 
-    /**Null if the context not an activity */
+    /**
+     * Null if the context not an activity
+     */
     @Nullable
-    public NotificationManager getNotificationManager(@NonNull Context context){
-        if(!(context instanceof AppCompatActivity || context instanceof Application)){
+    public NotificationManager getNotificationManager(@NonNull Context context) {
+        if (!(context instanceof AppCompatActivity || context instanceof Application)) {
             return null;
         }
 
@@ -50,14 +53,28 @@ public class AppPrincipal extends Application {
         this.globalPreferences = new PreferencesManager(this, Constants.KEY_REFERENCES);
     }
 
-    public void setLastLoggedInDate(){
+    /*Set the last logged date, using the actual system date*/
+    public synchronized void setLastLoggedInDate() {
         this.globalPreferences.put(Constants.KEY_LAST_LOGIN,
                 Long.toString(System.currentTimeMillis()));
     }
 
+    /*Get the saved last logged date, or actual moment if first time.*/
     public synchronized Date getLastLoggedInDate() {
-        String longDate = this.globalPreferences.getString(Constants.KEY_LAST_LOGIN);
-        return new Date(Long.parseLong(longDate));
+        if (!this.globalPreferences.contains(Constants.KEY_LAST_LOGIN)) {
+            setLastLoggedInDate();
+        }
+
+        String longStringDate = this.globalPreferences.getString(Constants.KEY_LAST_LOGIN);
+        long longDate = Long.parseLong(longStringDate);
+
+        return new Date(longDate);
     }
 
+    /*Save the data */
+    @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        this.setLastLoggedInDate();
+    }
 }

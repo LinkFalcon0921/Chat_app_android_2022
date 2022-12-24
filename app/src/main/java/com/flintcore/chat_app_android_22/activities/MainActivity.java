@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 
 import androidx.annotation.NonNull;
@@ -44,6 +45,8 @@ import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
+import org.jetbrains.annotations.Contract;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -58,11 +61,12 @@ import java.util.TreeSet;
 public class MainActivity extends AppCompatActivity
         implements EventListener<QuerySnapshot>, OnRecyclerItemListener<Conversation> {
 
+    public static final String NOT_POSSIBLE_LOGGED_OUT = "It was not possible logged out.";
     //    Application class
     private AppPrincipal application;
-    //    To handle notifications.
-    private NotificationManagerCompat notificationManagerCompat;
+    //     notifications handler classes.
     private NotificationManager notificationManager;
+    private NotificationManagerCompat notificationManagerCompat;
 
     private ActivityMainBinding binding;
     private PreferencesManager loggedPreferencesManager;
@@ -153,32 +157,43 @@ public class MainActivity extends AppCompatActivity
             showRecentListView();
             return;
         }
-//        label set filter of user.
 
-        readAllRecentConversations(documentChanges.iterator());
+        Date lastLoggedInDate = this.application.getLastLoggedInDate();
+        readAllRecentConversations(documentChanges.iterator(), lastLoggedInDate);
 
     }
 
     //    label Recursive call until end read Conversations.
-    private void readAllRecentConversations(Iterator<DocumentChange> iterator) {
+    private void readAllRecentConversations(Iterator<DocumentChange> iterator, @NonNull Date dateFilter) {
 //        label ends if not found more
         if (!iterator.hasNext()) {
             showRecentListView();
             return;
         }
 
-//        get the last logged date
-        Date lastLoggedDate = this.application.getLastLoggedInDate();
+//        Loop iterator
+        iterator.forEachRemaining(documentChange -> {
+            QueryDocumentSnapshot documentSnapshot = documentChange.getDocument();
+            Conversation conversation = documentSnapshot.toObject(Conversation.class);
 
-        DocumentChange documentChange = iterator.next();
-        QueryDocumentSnapshot documentSnapshot = documentChange.getDocument();
-        Conversation conversation = documentSnapshot.toObject(Conversation.class);
-
-        DocumentReference chatMessageDocument = documentSnapshot
-                .get(Conversations.KEY_LAST_MESSAGE_ID, DocumentReference.class);
+            DocumentReference chatMessageDocument = documentSnapshot
+                    .get(Conversations.KEY_LAST_MESSAGE_ID, DocumentReference.class);
 
 //        Map the reference Chat to object
-        CallResult<Task<DocumentSnapshot>> onChatReferenceMapped = task -> {
+            CallResult<Task<DocumentSnapshot>> onChatReferenceMapped =
+                    getOnChatReferenceMapped(dateFilter, documentChange, conversation);
+
+            CallResult<Exception> onFail = getExceptionCallResult();
+
+            mapChatMessageReference(chatMessageDocument, onChatReferenceMapped, onFail);
+        });
+    }
+
+    @NonNull
+    private CallResult<Task<DocumentSnapshot>> getOnChatReferenceMapped(@NonNull Date dateFilter,
+                                                                        DocumentChange documentChange,
+                                                                        Conversation conversation) {
+        return task -> {
             if (!task.isSuccessful() || !task.isComplete()) {
                 showRecentListView();
                 return;
@@ -190,37 +205,35 @@ public class MainActivity extends AppCompatActivity
             //      label  Filter the data
             switch (documentChange.getType()) {
                 case ADDED:
-                    setAdditionalConversationData(conversation);
-                    notifyNewMessage(conversation);
+                    setAdditionalConversationData(conversation, dateFilter);
                     break;
 
                 case MODIFIED:
                     CallResult<Conversation> onFoundCallResult = c ->
-                            updateRecentConversation(c, conversation);
+                            updateRecentConversation(c, conversation, dateFilter);
 
                     getOptionalConversation(conversation.getId(), onFoundCallResult);
-
                     break;
                 case REMOVED:
                     removeRecentConversation(conversation);
             }
-
-            readAllRecentConversations(iterator);
         };
-
-        CallResult<Exception> onFail = getExceptionCallResult();
-
-        mapChatMessageReference(chatMessageDocument, onChatReferenceMapped, onFail);
     }
 
-    /*label: Send a notification*/
-    private void notifyNewMessage(Conversation conversation) {
-        this.notificationManager.notify(this, this.notificationManagerCompat, conversation);
+    /*label: Send a notification using the notification manager.*/
+    private void notifyNewMessage(Conversation conversation, @NonNull Date date) {
+        this.notificationManager.notify(this, this.notificationManagerCompat,
+                conversation, date);
     }
 
-    private void mapChatMessageReference(DocumentReference chatMessageDocument,
+    private void mapChatMessageReference(@Nullable DocumentReference chatMessageDocument,
                                          CallResult<Task<DocumentSnapshot>> onChatReferenceMapped,
                                          CallResult<Exception> onFail) {
+
+        if (Objects.isNull(chatMessageDocument)) {
+            return;
+        }
+
         chatMessageDocument.get()
                 .addOnCompleteListener(onChatReferenceMapped::onCall)
                 .addOnFailureListener(onFail::onCall);
@@ -232,8 +245,8 @@ public class MainActivity extends AppCompatActivity
         this.recentMessageAdapter.notifyItemRemoved(indexInCollection);
     }
 
-    //  label  Method to update the recycler when map all data.
-    private void updateRecentConversation(Conversation conversation, Conversation newConversation) {
+    //  label  Method to update the conversation if matches
+    private void updateRecentConversation(Conversation conversation, Conversation newConversation, Date dateFilter) {
         int searchIndex = getIndexInCollection(this.conversations, conversation);
 
         if (searchIndex < 0) {
@@ -242,6 +255,8 @@ public class MainActivity extends AppCompatActivity
         }
         fillConversationData(conversation, newConversation);
         this.recentMessageAdapter.notifyItemChanged(searchIndex);
+//        Send the message when updated.
+        notifyNewMessage(conversation, dateFilter);
     }
 
     private void fillConversationData(Conversation conversation, Conversation newConversation) {
@@ -251,7 +266,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     private <T extends Comparable<T>> int getIndexInCollection(Collection<T> list, T conversation) {
-        int index = new ArrayList<T>(list).indexOf(conversation);
+        int index = new ArrayList<>(list).indexOf(conversation);
         showRecentListView();
         return index;
 
@@ -277,7 +292,7 @@ public class MainActivity extends AppCompatActivity
             conversation.getReceiver().setWasViewed(true);
 //            Update the state in the database
             this.conversationCollection.update(conversation, (r) -> {
-                this.updateRecentConversation(conversation, conversation);
+//                this.updateRecentConversation(conversation, conversation, dateFilter);
 
                 Intent chatRecentIntent = new Intent(getApplicationContext(), ChatSimpleActivity.class);
                 chatRecentIntent.putExtra(Conversations.KEY_CONVERSATION_OBJ, conversation);
@@ -294,7 +309,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     //   label Add recent messages to the list view
-    private void setAdditionalConversationData(@NonNull Conversation conversation) {
+    private void setAdditionalConversationData(@NonNull Conversation conversation, Date dateFilter) {
 
 //        label get member id.
         Optional<String> optionalMember = conversation.getMembers().stream()
@@ -315,6 +330,8 @@ public class MainActivity extends AppCompatActivity
                 conversation.setSenderName(userFound.getAlias());
                 this.conversations.add(conversation);
                 addRecentConversation(conversation);
+//                Send the notification
+                notifyNewMessage(conversation, dateFilter);
             };
 
             this.userCollection.getCollectionById(user,
@@ -322,7 +339,6 @@ public class MainActivity extends AppCompatActivity
         });
 
     }
-
 
     private void setFireStoreConnection() {
         this.userCollection = UserCollection.getInstance(getExceptionCallResult());
@@ -364,26 +380,9 @@ public class MainActivity extends AppCompatActivity
         whereListener.add(getByMemberQuery);
 
         return whereListener;
-
     }
 
-    //    label get query for get chat message and add it
-    private Collection<QueryCondition<String, Object>> setQueryChatGetMessage(ChatMessage message) {
-        Collection<QueryCondition<String, Object>> whereListener = CollectionsHelper.getArrayList();
-
-        QueryCondition<String, Object> getChatMessageById = new QueryCondition.Builder<String, Object>()
-                .setKey(Conversations.KEY_LAST_MESSAGE_ID)
-                .setKey(message.getId())
-                .setMatchType(QueryCondition.MatchType.EQUALS)
-                .build();
-
-        whereListener.add(getChatMessageById);
-
-        return whereListener;
-
-    }
     //    Listen recent messages in the app via conversations.
-
     private String getLoggedUserId() {
         return this.loggedPreferencesManager.getString(Users.KEY_USER_ID);
     }
@@ -519,8 +518,15 @@ public class MainActivity extends AppCompatActivity
         };
     }
 
+    private void saveLastTimeLogged() {
+        if (isFinishing()) {
+            this.application.setLastLoggedInDate();
+            System.out.println("Saved!!");
+        }
+    }
+
     private void showUnableLogoutMessage() {
-        MessagesAppGenerator.showToast(getApplicationContext(), "It was not possible logged out.",
+        MessagesAppGenerator.showToast(getApplicationContext(), NOT_POSSIBLE_LOGGED_OUT,
                 Messages.FAIL_GET_RESPONSE);
     }
 
@@ -528,6 +534,9 @@ public class MainActivity extends AppCompatActivity
     protected void onDestroy() {
         super.onDestroy();
 
-        clearToken();
+        Log.d("STATUS", "Main");
+        if(isFinishing()){
+            saveLastTimeLogged();
+        }
     }
 }

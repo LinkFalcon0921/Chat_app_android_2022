@@ -76,23 +76,23 @@ public class RecentMessageAdapter extends RecyclerView.Adapter<RecentMessageAdap
             this.binding = binding;
         }
 
-        public void setData(Conversation recentMessage, String userLogged, OnRecyclerItemListener<Conversation> l) {
-            applyImage(recentMessage.getSenderImage(), this.binding.ImagePreview);
+        public void setData(Conversation recentConversation, String userLogged, OnRecyclerItemListener<Conversation> l) {
+            applyImage(recentConversation.getSenderImage(), this.binding.ImagePreview);
 
-            String senderName = recentMessage.getSenderName();
+            String senderName = recentConversation.getSenderName();
             this.binding.nameTxt.setText(senderName);
 
-            ChatMessage chatMessage = recentMessage.getChatMessage();
+            ChatMessage chatMessage = recentConversation.getChatMessage();
             this.binding.secondOptionalTxt.setText(Encryptions.decrypt(chatMessage.getMessage()));
 
             boolean validateItWasSaw =
-                    Objects.equals(recentMessage.getReceiver().getReceiver(), userLogged) &&
-                            !recentMessage.getReceiver().getWasViewed();
+                    Objects.equals(recentConversation.getReceiver().getReceiver(), userLogged) &&
+                            !recentConversation.getReceiver().getWasViewed();
 
             this.binding.messageNotify.setVisibility(validateItWasSaw ?
                     View.VISIBLE : View.GONE);
 
-            this.binding.getRoot().setOnClickListener(v -> l.onClick(recentMessage));
+            this.binding.getRoot().setOnClickListener(v -> l.onClick(recentConversation));
         }
     }
 }

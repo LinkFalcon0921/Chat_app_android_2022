@@ -54,8 +54,8 @@ public class Conversation implements Serializable, Comparable<Conversation> {
         return chatMessage;
     }
 
-    public void setChatMessage(ChatMessage lastMessageId) {
-        this.chatMessage = lastMessageId;
+    public void setChatMessage(ChatMessage message) {
+        this.chatMessage = message;
     }
 
     @Exclude

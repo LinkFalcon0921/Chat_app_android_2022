@@ -18,14 +18,13 @@ import com.flintcore.chat_app_android_22.utilities.Messages.MessagesAppGenerator
 import com.flintcore.chat_app_android_22.utilities.collections.CollectionsHelper;
 import com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions;
 
-import java.util.Calendar;
 import java.util.Date;
 import java.util.Set;
 import java.util.Objects;
 
 public class NotificationManager {
 
-    protected static interface Constants {
+    protected interface Constants {
         //        Notification
         String NOTIFICATION_CHANNEL_ID = "Chat_Notifications_0s19";
         String NOTIFICATION_APP_NAME = "Flint Core Chat";
@@ -96,25 +95,39 @@ public class NotificationManager {
      */
     public synchronized void notify(@NonNull final Context context,
                                     @NonNull final NotificationManagerCompat notificationCompat,
-                                    @NonNull final Conversation conversation) {
+                                    @NonNull final Conversation conversation,
+                                    @NonNull final Date lastDate) {
 
 //        Check if manager or conversation was disabled
         if (!isEnable() || wasDisabled(conversation)) {
             return;
         }
 
-//        Check if the date was before to the last
-        ChatMessage chatMessage = conversation.getChatMessage();
-        String messageConverted = Encryptions.decrypt(chatMessage.getMessage());
+        Date conversationLastDateSent = conversation.getLastDateSent();
 
-        Notification notificationToGet = new NotificationCompat.Builder(
-                context,
+//        Cancel if the conversation date was before the lastDate
+        if (lastDate.after(conversationLastDateSent)) {
+            return;
+        }
+
+//        Sender title
+        String contentTitle = conversation.getSenderName();
+
+//        message text body
+        ChatMessage chatMessage = conversation.getChatMessage();
+        String message = Encryptions.decrypt(chatMessage.getMessage());
+
+        Notification notificationToGet = new NotificationCompat.Builder(context,
                 Constants.NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_chat_notification)
-                .setContentTitle(Constants.NOTIFICATION_APP_NAME)
-                .setContentText(messageConverted)
+                .setContentTitle(contentTitle)
+                .setContentText(message)
                 .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+//               TODO: Change this later
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                .setDefaults(NotificationCompat.DEFAULT_SOUND | NotificationCompat.DEFAULT_VIBRATE)
                 .build();
 
         int id = (int) (Math.random() * Constants.RANDOM_RANGE_ID);
