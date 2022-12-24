@@ -104,6 +104,15 @@ public class MainActivity extends AppCompatActivity
         loadRecentConversations();
 
         setListeners();
+
+        setClosingActions();
+    }
+
+    private void setClosingActions() {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            saveLastTimeLogged();
+            System.out.println("Saved");
+        }));
     }
 
     //    label: Notifications
@@ -158,12 +167,13 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
-        Date lastLoggedInDate = this.application.getLastLoggedInDate();
+        Date lastLoggedInDate = getLastLoggedInDate();
         readAllRecentConversations(documentChanges.iterator(), lastLoggedInDate);
 
     }
 
     //    label Recursive call until end read Conversations.
+
     private void readAllRecentConversations(Iterator<DocumentChange> iterator, @NonNull Date dateFilter) {
 //        label ends if not found more
         if (!iterator.hasNext()) {
@@ -188,7 +198,6 @@ public class MainActivity extends AppCompatActivity
             mapChatMessageReference(chatMessageDocument, onChatReferenceMapped, onFail);
         });
     }
-
     @NonNull
     private CallResult<Task<DocumentSnapshot>> getOnChatReferenceMapped(@NonNull Date dateFilter,
                                                                         DocumentChange documentChange,
@@ -221,11 +230,11 @@ public class MainActivity extends AppCompatActivity
     }
 
     /*label: Send a notification using the notification manager.*/
+
     private void notifyNewMessage(Conversation conversation, @NonNull Date date) {
         this.notificationManager.notify(this, this.notificationManagerCompat,
                 conversation, date);
     }
-
     private void mapChatMessageReference(@Nullable DocumentReference chatMessageDocument,
                                          CallResult<Task<DocumentSnapshot>> onChatReferenceMapped,
                                          CallResult<Exception> onFail) {
@@ -246,6 +255,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     //  label  Method to update the conversation if matches
+
     private void updateRecentConversation(Conversation conversation, Conversation newConversation, Date dateFilter) {
         int searchIndex = getIndexInCollection(this.conversations, conversation);
 
@@ -258,7 +268,6 @@ public class MainActivity extends AppCompatActivity
 //        Send the message when updated.
         notifyNewMessage(conversation, dateFilter);
     }
-
     private void fillConversationData(Conversation conversation, Conversation newConversation) {
         conversation.setChatMessage(newConversation.getChatMessage());
         conversation.setLastDateSent(newConversation.getLastDateSent());
@@ -273,6 +282,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     //  label  Adapter notified when Conversation is added
+
     private void addRecentConversation(Conversation conversation) {
         ArrayList<Conversation> arrayList = new ArrayList<>(this.conversations);
 
@@ -280,8 +290,8 @@ public class MainActivity extends AppCompatActivity
 
         this.recentMessageAdapter.notifyItemInserted(searchIndex);
     }
-
     //    label listener to recent conversation.
+
     @Override
     public void onClick(Conversation conversation) {
         CallResult<Task<Void>> onCompleteUpdate = task -> {
@@ -302,13 +312,13 @@ public class MainActivity extends AppCompatActivity
 
         this.conversationCollection.update(conversation, onCompleteUpdate, getExceptionCallResult());
     }
-
     private void showRecentListView() {
         this.binding.recentConversationsRecycler.setVisibility(View.VISIBLE);
         this.binding.progressBar.setVisibility(View.GONE);
     }
 
     //   label Add recent messages to the list view
+
     private void setAdditionalConversationData(@NonNull Conversation conversation, Date dateFilter) {
 
 //        label get member id.
@@ -339,7 +349,6 @@ public class MainActivity extends AppCompatActivity
         });
 
     }
-
     private void setFireStoreConnection() {
         this.userCollection = UserCollection.getInstance(getExceptionCallResult());
 
@@ -360,14 +369,15 @@ public class MainActivity extends AppCompatActivity
     }
 
     //   label Listen recent messages in the app via conversations.
+
     private void listenRecentMessages() {
 
         Collection<QueryCondition<String, Object>> queryRecentListener = setQueryRecentListener();
 
         this.conversationCollection.applyCollectionListener(queryRecentListener, this::onEvent);
     }
-
     //    label recent query list
+
     private Collection<QueryCondition<String, Object>> setQueryRecentListener() {
         Collection<QueryCondition<String, Object>> whereListener = CollectionsHelper.getArrayList();
 
@@ -381,12 +391,11 @@ public class MainActivity extends AppCompatActivity
 
         return whereListener;
     }
-
     //    Listen recent messages in the app via conversations.
+
     private String getLoggedUserId() {
         return this.loggedPreferencesManager.getString(Users.KEY_USER_ID);
     }
-
     private void getOptionalConversation(String conversationId, CallResult<Conversation> callResult) {
         Optional<Conversation> conversationOptional = this.conversations.stream()
                 .filter(cv -> cv.getId().equals(conversationId)).findFirst();
@@ -395,6 +404,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     //    label button listeners
+
     private void setListeners() {
         this.binding.logoutBtn.setOnClickListener(v -> signOutUser());
 //        Open users List to add
@@ -408,7 +418,6 @@ public class MainActivity extends AppCompatActivity
             v.setEnabled(true);
         });
     }
-
     @NonNull
     private Intent getUserLoggedInfoIntent() {
         Intent userLoggedInfo = getUserLoggedInfo();
@@ -449,6 +458,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     //   label update the user token
+
     private void updateToken() {
         CallResult<String> onSuccess = getUpdateActionToken();
 
@@ -456,8 +466,8 @@ public class MainActivity extends AppCompatActivity
 
         this.userCollection.appendToken(this.loggedUser, onSuccess, onFail);
     }
-
     //    label clear the user token, also logout.
+
     private void clearToken() {
         CallResult<Task<Void>> onComplete = getOnDeleteToken();
 
@@ -465,7 +475,6 @@ public class MainActivity extends AppCompatActivity
 
         this.userCollection.clearToken(this.loggedUser, onComplete, onFail);
     }
-
     private CallResult<Task<Void>> getOnDeleteToken() {
         return token -> {
             if (!token.isComplete() || !token.isSuccessful()) {
@@ -518,11 +527,13 @@ public class MainActivity extends AppCompatActivity
         };
     }
 
+//    label: last date logged user
     private void saveLastTimeLogged() {
-        if (isFinishing()) {
-            this.application.setLastLoggedInDate();
-            System.out.println("Saved!!");
-        }
+        this.application.setLastLoggedInDate();
+    }
+
+    private Date getLastLoggedInDate() {
+        return this.application.getLastLoggedInDate();
     }
 
     private void showUnableLogoutMessage() {
@@ -531,12 +542,16 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
+    public void onBackPressed() {
+        super.onBackPressed();
+        saveLastTimeLogged();
+    }
 
-        Log.d("STATUS", "Main");
-        if(isFinishing()){
-            saveLastTimeLogged();
-        }
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        Log.d("STATUSnkb1", "Main");
+        saveLastTimeLogged();
     }
 }

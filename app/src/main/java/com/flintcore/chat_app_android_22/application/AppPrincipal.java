@@ -71,7 +71,7 @@ public class AppPrincipal extends Application {
         return new Date(longDate);
     }
 
-    /*Save the data */
+    /*Save the date */
     @Override
     public void onLowMemory() {
         super.onLowMemory();
