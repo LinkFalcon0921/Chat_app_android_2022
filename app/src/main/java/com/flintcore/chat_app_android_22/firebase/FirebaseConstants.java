@@ -64,7 +64,7 @@ public interface FirebaseConstants {
     interface Conversations {
         String KEY_COLLECTION = "conversations";
         String KEY_ID = "conversationId";
-        String KEY_LAST_MESSAGE_ID = "lastMessageId";
+        String KEY_LAST_MESSAGE = "chatMessage";
         String KEY_LAST_DATE = "lastDateSent";
         String KEY_CONVERSATION_RECEIVER = "receiver";
         /**

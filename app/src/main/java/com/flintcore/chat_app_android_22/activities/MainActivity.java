@@ -45,8 +45,6 @@ import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
-import org.jetbrains.annotations.Contract;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -174,12 +172,8 @@ public class MainActivity extends AppCompatActivity
 
     //    label Recursive call until end read Conversations.
 
-    private void readAllRecentConversations(Iterator<DocumentChange> iterator, @NonNull Date dateFilter) {
+    private void readAllRecentConversations(@NonNull Iterator<DocumentChange> iterator, @NonNull Date dateFilter) {
 //        label ends if not found more
-        if (!iterator.hasNext()) {
-            showRecentListView();
-            return;
-        }
 
 //        Loop iterator
         iterator.forEachRemaining(documentChange -> {
@@ -187,7 +181,7 @@ public class MainActivity extends AppCompatActivity
             Conversation conversation = documentSnapshot.toObject(Conversation.class);
 
             DocumentReference chatMessageDocument = documentSnapshot
-                    .get(Conversations.KEY_LAST_MESSAGE_ID, DocumentReference.class);
+                    .get(Conversations.KEY_LAST_MESSAGE, DocumentReference.class);
 
 //        Map the reference Chat to object
             CallResult<Task<DocumentSnapshot>> onChatReferenceMapped =
@@ -197,6 +191,8 @@ public class MainActivity extends AppCompatActivity
 
             mapChatMessageReference(chatMessageDocument, onChatReferenceMapped, onFail);
         });
+
+        showRecentListView();
     }
 
     @NonNull
@@ -215,18 +211,21 @@ public class MainActivity extends AppCompatActivity
             //      label  Filter the data
             switch (documentChange.getType()) {
                 case ADDED:
-                    setAdditionalConversationData(conversation, dateFilter);
+                    setAdditionalConversationData(conversation);
                     break;
 
                 case MODIFIED:
                     CallResult<Conversation> onFoundCallResult = c ->
-                            updateRecentConversation(c, conversation, dateFilter);
+                            updateRecentConversation(c, conversation);
 
                     getOptionalConversation(conversation.getId(), onFoundCallResult);
                     break;
                 case REMOVED:
                     removeRecentConversation(conversation);
             }
+
+//            Send the message
+            notifyConversationWhenNotSeen(conversation, dateFilter);
         };
     }
 
@@ -258,7 +257,7 @@ public class MainActivity extends AppCompatActivity
 
     //  label  Method to update the conversation if matches
 
-    private void updateRecentConversation(Conversation conversation, Conversation newConversation, Date dateFilter) {
+    private void updateRecentConversation(Conversation conversation, Conversation newConversation) {
         int searchIndex = getIndexInCollection(this.conversations, conversation);
 
         if (searchIndex < 0) {
@@ -267,8 +266,6 @@ public class MainActivity extends AppCompatActivity
         }
         fillConversationData(conversation, newConversation);
         this.recentMessageAdapter.notifyItemChanged(searchIndex);
-//        Send the message when updated.
-        notifyNewMessage(conversation, dateFilter);
     }
 
     private void fillConversationData(Conversation conversation, Conversation newConversation) {
@@ -279,7 +276,6 @@ public class MainActivity extends AppCompatActivity
 
     private <T extends Comparable<T>> int getIndexInCollection(Collection<T> list, T conversation) {
         int index = new ArrayList<>(list).indexOf(conversation);
-        showRecentListView();
         return index;
 
     }
@@ -323,7 +319,7 @@ public class MainActivity extends AppCompatActivity
 
     //   label Add recent messages to the list view
 
-    private void setAdditionalConversationData(@NonNull Conversation conversation, Date dateFilter) {
+    private void setAdditionalConversationData(@NonNull Conversation conversation) {
 
 //        label get member id.
         Optional<String> optionalMember = conversation.getMembers().stream()
@@ -344,14 +340,19 @@ public class MainActivity extends AppCompatActivity
                 conversation.setSenderName(userFound.getAlias());
                 this.conversations.add(conversation);
                 addRecentConversation(conversation);
-//                Send the notification
-                notifyNewMessage(conversation, dateFilter);
             };
 
             this.userCollection.getCollectionById(user,
                     onFoundUserReceiver, getExceptionCallResult());
         });
 
+    }
+
+    private void notifyConversationWhenNotSeen(@NonNull Conversation conversation, Date dateFilter) {
+        if(!conversation.getReceiver().getWasViewed()){
+            //                Send the notification
+            notifyNewMessage(conversation, dateFilter);
+        }
     }
 
     private void setFireStoreConnection() {

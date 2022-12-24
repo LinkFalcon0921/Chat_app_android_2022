@@ -1,7 +1,7 @@
 package com.flintcore.chat_app_android_22.firebase.firestore.conversations;
 
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations.KEY_COLLECTION;
-import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations.KEY_LAST_MESSAGE_ID;
+import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Conversations.KEY_LAST_MESSAGE;
 import static com.flintcore.chat_app_android_22.firebase.FirebaseConstants.Results.MESSAGE;
 
 import androidx.annotation.NonNull;
@@ -93,9 +93,9 @@ public class ConversationCollection<D extends ChatMessage> extends FirebaseConne
             conversation.setId(documentRefToAdd.getId());
         }
 
-        if (document.containsKey(KEY_LAST_MESSAGE_ID)) {
-            String documentPath = (String) document.get(KEY_LAST_MESSAGE_ID);
-            document.put(KEY_LAST_MESSAGE_ID, this.chatMessageCollection.document(documentPath));
+        if (document.containsKey(KEY_LAST_MESSAGE)) {
+            String documentPath = (String) document.get(KEY_LAST_MESSAGE);
+            document.put(KEY_LAST_MESSAGE, this.chatMessageCollection.document(documentPath));
         }
 
         documentRefToAdd
@@ -111,9 +111,9 @@ public class ConversationCollection<D extends ChatMessage> extends FirebaseConne
 
         Map<String, Object> fields = this.wrapper.getDocument(conversation);
 
-        if (fields.containsKey(KEY_LAST_MESSAGE_ID)) {
-            String chatDocumentPath = (String) fields.get(KEY_LAST_MESSAGE_ID);
-            fields.replace(KEY_LAST_MESSAGE_ID, this.chatMessageCollection.document(chatDocumentPath));
+        if (fields.containsKey(KEY_LAST_MESSAGE)) {
+            String chatDocumentPath = (String) fields.get(KEY_LAST_MESSAGE);
+            fields.replace(KEY_LAST_MESSAGE, this.chatMessageCollection.document(chatDocumentPath));
         }
 
         this.collection.document(conversation.getId())
@@ -143,7 +143,7 @@ public class ConversationCollection<D extends ChatMessage> extends FirebaseConne
                                         @NonNull CallResult<Task<QuerySnapshot>> onCompleteListener,
                                         CallResult<Exception> onFailListener) {
         this.collection.
-                whereEqualTo(Conversations.KEY_LAST_MESSAGE_ID, chatMessage.getId())
+                whereEqualTo(Conversations.KEY_LAST_MESSAGE, chatMessage.getId())
                 .get()
                 .addOnCompleteListener(onCompleteListener::onCall)
                 .addOnFailureListener(onFailListener::onCall);
@@ -158,7 +158,7 @@ public class ConversationCollection<D extends ChatMessage> extends FirebaseConne
     public void getCollection(ChatMessage message,
                               OnCompleteListener<QuerySnapshot> onComplete, Call onFail) {
         this.collection
-                .whereEqualTo(KEY_LAST_MESSAGE_ID, message.getId())
+                .whereEqualTo(KEY_LAST_MESSAGE, message.getId())
                 .get()
                 .addOnCompleteListener(onComplete)
                 .addOnFailureListener(fail -> callOnFail(onFail, fail));

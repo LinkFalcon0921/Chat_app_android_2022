@@ -61,7 +61,7 @@ public class ModelWrapper {
     public Map<String, Object> getDocument(Conversation conversation) {
         HashMap<String, Object> conversationMap = CollectionsHelper.getHashMap();
 
-        conversationMap.put(Conversations.KEY_LAST_MESSAGE_ID,
+        conversationMap.put(Conversations.KEY_LAST_MESSAGE,
                 conversation.getChatMessage().getId());
         conversationMap.put(Conversations.KEY_LAST_DATE,
                 conversation.getLastDateSent());
