@@ -5,10 +5,18 @@ import static com.flintcore.chat_app_android_22.utilities.encrypt.Encryptions.En
 
 import android.util.Base64;
 
+import com.flintcore.chat_app_android_22.utilities.collections.CollectionsHelper;
+
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
+import java.util.StringJoiner;
 
 public final class Encryptions {
+
+    public static final String DEFAULT_DELIMITER = ",";
 
     interface EncryptionValues {
         byte ENCRYPT_DIVIDE_VALUE = 7;
@@ -28,63 +36,45 @@ public final class Encryptions {
         return encryptions;
     }
 
-//    DONE!
+    //    DONE!
     public static String encrypt(String text) {
-        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-        byte[] newBytedText = new byte[bytes.length * 2];
+        byte[] bytesText = text.getBytes(StandardCharsets.UTF_8);
+        StringJoiner joiner = new StringJoiner(DEFAULT_DELIMITER);
 
-        int newBytesCount = 0;
-        for (int indx = 0; indx < bytes.length; indx++, newBytesCount+=2) {
-            byte actByteDiv = (byte) (bytes[indx] / ENCRYPT_DIVIDE_VALUE);
-            byte actByteMod = (byte) (bytes[indx] % ENCRYPT_DIFF_VALUE);
+        for (byte b : bytesText) {
+            byte actByteDiv = (byte) (b / ENCRYPT_DIVIDE_VALUE);
+            byte actByteMod = (byte) (b % ENCRYPT_DIFF_VALUE);
 
-            newBytedText[newBytesCount] = actByteDiv;
-            newBytedText[newBytesCount+1] = actByteMod;
+            joiner.add(Byte.toString(actByteDiv))
+                    .add(Byte.toString(actByteMod));
         }
 
-        return new String(newBytedText, StandardCharsets.UTF_8);
+        return joiner.toString();
 
     }
 
     public static String decrypt(String text) {
-        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-        byte[] newBytedText = new byte[bytes.length / 2];
+        String[] bytesText = text.split(DEFAULT_DELIMITER);
 
-        int newBytesCount = 0;
-        for (int indx = 0; indx < bytes.length; indx+=2, newBytesCount++) {
-            byte actByteDiv = (byte) (bytes[indx] * ENCRYPT_DIVIDE_VALUE);
-            byte actByteMod = bytes[indx+1];
+        int newLength = bytesText.length / 2;
+        int additionalLength = bytesText.length % 2;
+        byte[] characters = new byte[newLength + additionalLength];
 
-            newBytedText[newBytesCount] = (byte) (actByteDiv + actByteMod);
+        int pos = 0, newPos = 0;
+        while (pos < bytesText.length) {
+//           label : pos Increment while the data is read
+            byte FpartByte = asByte((Byte.parseByte(bytesText[pos++]) * ENCRYPT_DIVIDE_VALUE));
+            byte SpartByte = Byte.parseByte(bytesText[pos++]);
+
+            characters[newPos++] = (byte) (FpartByte + SpartByte);
         }
 
-        return new String(newBytedText, StandardCharsets.UTF_8);
+        return new String(characters, StandardCharsets.UTF_8);
 
     }
 
-    @Deprecated
-    public static byte[] encrypt(byte[] data) {
-
-        return data;
-    }
-
-    @Deprecated
-    public static byte[] decrypt(byte[] data) {
-
-        return data;
-    }
-
-    @Deprecated
-    public static String encryptToString(byte[] data) {
-
-        return new String(data, StandardCharsets.UTF_8);
-    }
-
-    @Deprecated
-    public static byte[] decryptFromString(String data) {
-        byte[] dataBytes = data.getBytes(StandardCharsets.UTF_8);
-
-        return dataBytes;
+    private static byte asByte(int i) {
+        return (byte) i;
     }
 
     public static String encryptAndroidImageToString(byte[] data) {
